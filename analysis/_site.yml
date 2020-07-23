@@ -1,7 +1,7 @@
-name: "baumarten"
+name: baumarten
 output_dir: ../docs
 navbar:
-  title: "baumarten"
+  title: baumarten
   left:
   - text: Home
     href: index.html
@@ -9,6 +9,10 @@ navbar:
     href: about.html
   - text: License
     href: license.html
+  right:
+  - icon: fa-github
+    text: Source code
+    href: https://github.com/wiesehahn/baumarten
 output:
   workflowr::wflow_html:
     toc: yes
