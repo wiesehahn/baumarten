@@ -23,4 +23,5 @@ wflow_status()
 wflow_git_commit()
 wflow_git_commit("evaluation.Rmd")
 wflow_build()
+wflow_git_commit(all=T)
 
