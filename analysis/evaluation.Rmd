@@ -18,20 +18,25 @@ editor_options:
 - Choice of satellite imagery (**date**, quality)
 - Preprocessing steps (atmospheric, topographic, ... correction)
 - Image **masking** (clouds, cloud shadows, nodata)
+
 ### Reference Data
 - Choice of **reference data** (distribution)
 - Label reference data
 - Extraction of input data for reference areas
 - Splitting in train and test data sets
+
 ### Build Classification Model
 - Choice of **classification features**
 - Choice of model hyperparameters
+
 ### Apply Classification Model
 - Input data classification
 - Class probability calculation
+
 ### Postprocessing
 - Apply **filter** (Minimal Mapping Unit, Focal filter)
 - **Integration of class probabilities**
+
 ### Accuracy Assessment
 - Calculate accuracy metrics from validation data
 
