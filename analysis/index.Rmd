@@ -1,5 +1,5 @@
 ---
-title: "Home"
+title: "Mapping tree species"
 site: workflowr::wflow_site
 output:
   workflowr::wflow_html:
@@ -8,7 +8,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-Welcome to my research website.
 
-Click on this [link](evaluation.html) to see my results.
+
+[Mapping evaluation](evaluation.html)
 
