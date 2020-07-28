@@ -7,10 +7,15 @@ editor_options:
   chunk_output_type: console
 ---
 
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(# fig.width=12, fig.height=8, 
+  echo=FALSE, warning=FALSE, message=FALSE)
+```
+
 ## Introduction
 
 
-## Validation 
+## Validation Steps
 
 (classification steps and **validation possibilities**)
 
@@ -40,7 +45,187 @@ editor_options:
 ### Accuracy Assessment
 - Calculate accuracy metrics from validation data
 
-```{r}
+
+## Reference Data
+
+```{r plot_ref_init}
+library(rgdal)
+library(leaflet)
+library(raster)
+
+ref.sol <- readOGR(dsn="../data/reference/Solling", layer = "Training_Solling_2", stringsAsFactors = T, verbose=F)
+ref.sol@data$site = as.factor("Solling")
+
+ref.har <- readOGR(dsn="../data/reference/Harz", layer = "Training_Harz_2", stringsAsFactors = T, verbose=F)
+ref.har@data$site = as.factor("Harz")
+
+ref.hei <- readOGR(dsn="../data/reference/Heide", layer = "Training_Heide_2", stringsAsFactors = T, verbose=F)
+ref.hei@data$site = as.factor("Heide")
+
+ref.all <- rbind(ref.sol,ref.har,ref.hei)
+ref <- spTransform(ref.all, CRS("+init=epsg:4326"))
+
+# set same relative extent
+ext.sol <- extent(ref.sol)
+ext.dist <- min(ext.sol@xmax - ext.sol@xmin, ext.sol@ymax - ext.sol@ymin)
+
+ext.sol@xmax <- ext.sol@xmin + ext.dist
+ext.sol@ymax <- ext.sol@ymin + ext.dist
+
+ext.har <- extent(ref.har)
+ext.har@xmax <- ext.har@xmin + ext.dist
+ext.har@ymax <- ext.har@ymin + ext.dist
+
+ext.hei <- extent(ref.hei)
+ext.hei@xmax <- ext.hei@xmin + ext.dist
+ext.hei@ymax <- ext.hei@ymin + ext.dist
+
+# set color palette for leaflet
+pal <- colorFactor("Dark2", ref@data$BA)
+```
+
+The reference data was sampled in three project areas (Harz, Heide, Solling).
+```{r plot_ref_all, fig.cap= "Reference data sampling locations"}
+leaflet(ref) %>%
+  addProviderTiles(providers$Esri.WorldTopoMap) %>%
+  addPolygons( color = ~pal(BA), weight = 1, smoothFactor = 0.5,
+              opacity = 1.0, fillOpacity = 0.7,
+              highlightOptions = highlightOptions(color = "white", weight = 2,
+                                                  bringToFront = TRUE)) %>%
+  addLegend("bottomright", pal = pal, values = ~BA,
+            title = "Baumart",
+            opacity = 1
+  )
+```
+
+Number of reference data polygons by tree species
+```{r tab_ref_spec}
+library(formattable)
+library(tidyverse)
+
+ref@data %>% dplyr::group_by(BA) %>% dplyr::summarise(n=n(), .groups = 'drop') %>% formattable()
 
 ```
+
+Number of reference data polygons by site
+```{r tab_ref_site}
+
+ref@data %>% dplyr::group_by(site) %>% dplyr::summarise(n=n()) %>% formattable()
+
+```
+
+Number of reference data polygons by tree species and site
+```{r tab_ref_site-spec}
+
+ref@data %>% dplyr::group_by(BA, site) %>% dplyr::summarise(n=n()) %>%  spread(site, n) %>% formattable()
+
+```
+
+
+## Classification
+
+```{r plot_class_init}
+library(RColorBrewer)
+
+img.class <- raster("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu.tif")
+
+palette <- brewer.pal(n = 6, name = "Dark2")
+
+```
+
+### Solling
+```{r plot_class_sol , fig.cap= "Tree species classification result for Solling"}
+plot(img.class, col =palette, ext=ext.sol, axes=FALSE, box=FALSE)
+```
+
+### Harz
+```{r plot_class_har, fig.cap= "Tree species classification result for Harz"}
+plot(img.class, col =palette, ext=ext.har, axes=FALSE, box=FALSE)
+```
+
+### Heide
+```{r plot_class_hei, fig.cap= "Tree species classification result for Heide"}
+plot(img.class, col =palette, ext=ext.hei, axes=FALSE, box=FALSE)
+```
+
+
+## Probability
+
+The Random Forest algorithm simply counts the fraction of trees in a forest that vote for a certain class to generate the predicted class. This class probability can be generated separately and provides insights in classification certainty.
+
+```{r plot_prob_init}
+library(rasterVis)
+
+f <- "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/rfprob_masked.tif"
+if (!file.exists(f)){
+  img.class <- raster("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu.tif")
+  img.prob.unmasked <- raster("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu_rfprob.tif")
+  img.prob.masked <- mask(img.prob.unmasked, mask= img.class, filename= "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/rfprob_masked.tif")
+}
+
+img.prob <- raster("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/rfprob_masked.tif")
+
+img.prob.sol <- crop(img.prob, ext.sol)
+img.prob.har <- crop(img.prob, ext.har)
+img.prob.hei <- crop(img.prob, ext.hei)
+
+```
+
+### Overview
+```{r plot_prob_all, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for the entire study region"}
+levelplot(img.prob,  margin = list(axis = TRUE, scales=list(x= c(60,80), y = c(60,80))), scales=list(draw=FALSE), maxpixels = 1e6)
+
+```
+
+### Solling
+```{r plot_prob_sol, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for Solling"}
+levelplot(img.prob.sol,  margin = list(axis = TRUE, scales=list(x= c(60,80), y = c(60,80))), scales=list(draw=FALSE), maxpixels = 1e6)
+```
+
+### Harz
+```{r plot_prob_har, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for Harz"}
+levelplot(img.prob.har,  margin = list(axis = TRUE, scales=list(x= c(60,80), y = c(60,80))), scales=list(draw=FALSE), maxpixels = 1e6)
+```
+
+### Heide
+```{r plot_prob_hei, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for Heide"}
+levelplot(img.prob.hei,  margin = list(axis = TRUE, scales=list(x= c(60,80), y = c(60,80))), scales=list(draw=FALSE), maxpixels = 1e6)
+```
+
+### Reference Probability
+
+Classification probabilities were extracted for each pixel inside reference polygons. The extracted values grant insight in classification certainty by tree species and reference site.
+
+```{r plot_ref_prob_init}
+clip <- crop(img.prob, extent(ref.all))
+
+ref.prob.sol <- raster::extract(clip, ref.sol, df=TRUE)
+ref.prob.sol$ID <- as.factor(ref.prob.sol$ID)
+ref.prob.sol <- merge(ref.prob.sol, ref.sol@data ,by="ID", all = TRUE)
+
+
+ref.prob.har <- raster::extract(clip, ref.har, df=TRUE)
+ref.prob.har$ID <- as.factor(ref.prob.har$ID)
+ref.prob.har <- merge(ref.prob.har, ref.har@data ,by="ID", all = TRUE)
+
+
+
+ref.prob.hei <- raster::extract(clip, ref.hei, df=TRUE)
+ref.prob.hei$ID <- as.factor(ref.prob.hei$ID)
+ref.prob.hei <- merge(ref.prob.hei, ref.hei@data ,by="ID", all = TRUE)
+
+ref.prob <- rbind.data.frame(ref.prob.sol, ref.prob.har, ref.prob.hei)
+
+```
+
+```{r plot_ref_prob, fig.cap= "Classification probability by site and tree species for reference data locations"}
+library(plotly)
+
+fig <- plot_ly(ref.prob, x = ~site, y = ~rfprob_masked, color = ~BA, colors= palette, type = "box")
+
+fig <- fig %>% layout(boxmode = "group", yaxis = list(title = "Probability"), xaxis = list(title = FALSE))
+
+fig
+```
+
 
