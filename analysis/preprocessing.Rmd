@@ -1,0 +1,117 @@
+---
+title: "preprocessing"
+author: "wiesehahn"
+date: "2020-07-30"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Introduction
+
+
+### Cloud mask
+
+1. download **FMask** from https://github.com/gersl/fmask
+2. install
+3. navigate to image path from command line, e.g.:
+```
+>cd C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\raw\S2B_MSIL1C_20190823T103029_N0208_R108_T32UNC_20190823T124349.SAFE\GRANULE\L1C_T32UNC_A012861_20190823T103244
+```
+4. run **FMask** from command line ("path_to_Fmask"), e.g.:
+```
+>"C:\Program Files\GERS\Fmask_4_2\application\Fmask_4_2"
+```
+
+### Atmospheric correction
+
+1. download **sen2cor** from http://step.esa.int/main/third-party-plugins-2/sen2cor/
+2. navigate to the file, e.g.:
+```
+>cd C:\Users\jwiesehahn\AppData\Local\Sen2Cor-02.08.00-win64
+```
+3. run **sen2cor** from command line ("L2A_Process.bat path_to_file"), e.g.:
+```
+>L2A_Process.bat C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\raw\S2B_MSIL1C_20190823T103029_N0208_R108_T32UNC_20190823T124349.SAFE
+```
+
+### Resampling
+
+1. download repository from https://github.com/lanha/DSen2
+
+2. process file structure and naming to make script work
+
+write file path and image date to objects, e.g.:
+```{python eval=FALSE}
+input_daten = r"C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\raw"
+post_sen2cor = r"C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\post_sen2cor_2A"
+datum = "20190823"
+```
+process (move, delete, rename) data
+```{python eval=FALSE}
+import os
+import shutil
+
+# move L2A data to new folder
+if not os.path.isdir(post_sen2cor):
+    os.mkdir(post_sen2cor)
+    
+for root, dirs, files in os.walk(input_daten):
+    for subdirname in dirs:
+        if ("MSIL2A" in subdirname and datum in subdirname) and subdirname.endswith(".SAFE"):
+            folder_2A = os.path.join(root, subdirname)
+
+shutil.move(folder_2A, post_sen2cor)
+
+
+# remove IMG_DATA in 1C folder
+for root, dirs, files in os.walk(input_daten):
+    for subdirname in dirs:
+        if ("IMG_DATA" in os.path.join(root,subdirname) and datum in os.path.join(root,subdirname)):
+            img_folder_1C = os.path.join(root, subdirname)
+
+for file in os.listdir(img_folder_1C):
+    os.remove(os.path.join(img_folder_1C, file))
+    print("Files removed")
+    
+    
+# copy IMG_DATA in 2A folder to IMG_DATA in 1C folder
+band_folders = []
+for root, dirs, files in os.walk(post_sen2cor):
+    for subdirname in dirs:
+        if "MSIL2A_" + datum in os.path.join(root,subdirname) and os.path.join(root,subdirname).endswith("0m"):
+            band_folders.append(os.path.join(root, subdirname))
+
+b10m = ["B02", "B03", "B04", "B08"]
+b20m = ["B05", "B06", "B07", "B8A", "B11", "B12"]
+
+# Copy 10 m bands
+for fl in os.listdir(band_folders[0]):
+    if any(b in fl for b in b10m):
+        shutil.copy(os.path.join(band_folders[0], fl), img_folder_1C)
+        print("10 m bands moved")
+
+# Copy 20 m bands
+for fl in os.listdir(band_folders[1]):
+    if any(b in fl for b in b20m):
+        shutil.copy(os.path.join(band_folders[1], fl), img_folder_1C)
+        print("20 m bands moved")
+
+        
+# delete ending "_10m" and "_20m"
+img_folder_1C
+for fl in os.listdir(img_folder_1C):
+    old_name = os.path.join(img_folder_1C, fl)
+    new_name = os.path.join(img_folder_1C, fl[0:-8] + fl[-4:])
+    os.rename(old_name, new_name)
+```
+
+3. navigate to python.exe, e.g.:
+```
+>cd "C:\Users\jwiesehahn\Anaconda3"
+```
+4. run **Dsen2** from command line (path_to_s2_tiles_supres.py path_to_MTD_MSIL1C.xml out_path\out_name.tif --copy_original_bands), e.g.:
+```
+>python.exe "C:\Users\jwiesehahn\AppData\Local\DSen2master\testing\s2_tiles_supres.py" "C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\raw\S2B_MSIL1C_20190823T103029_N0208_R108_T32UNC_20190823T124349.SAFE\MTD_MSIL1C.xml" "C:\Users\jwiesehahn\Arbeit\projects\baumarten\data\sen2\post_Dsen2\S2B_test.tif" --copy_original_bands
+```
+
