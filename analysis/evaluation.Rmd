@@ -356,53 +356,144 @@ cm.df %>%
 
 ```
 
-<!-- **Respective Accuracy** -->
-<!-- ```{r print_ref_acc} -->
-<!-- print(cm$overall[1:2]) -->
-<!-- ``` -->
+
+### Inventory data as reference
+
+BWI-plots in Lower Saxony were filtered by certain criteria to serve as validation data. Only plots with a relative tree species proportion of more than 75% in the main canopy layer for one of the classified tree species groups were considered.
+Class predictions for all pixels covered by these plots were extracted from the model prediction raster and compared against the inventory data.
+
+```{r plot_bwi_class_init}
+# load bwi data
+ref_ni <- read.csv("../data/reference/bwi/ref_ni.csv", stringsAsFactors=TRUE)
+
+ref_ni$BA <- plyr::revalue(ref_ni$BaGr, c("EI"="Eiche", 
+                    "BU"="Buche",
+                    "FI"="Fichte",
+                    "DGL"="Douglasie",
+                    "KI"="Kiefer",
+                    "LAE"="Laerche"))
+
+ref_ni.sp<- SpatialPointsDataFrame(coords = ref_ni[,c("GK3_Rechts", "GK3_Hoch")], data = ref_ni, proj4string = CRS("+init=epsg:31467"))
+
+# transform
+ref.bwi <- spTransform(ref_ni.sp, CRS("+init=epsg:4326"))
 
 
 
-<!-- ## Misclassifications -->
+ref.class.bwi <- raster::extract(clip, ref.bwi, df=TRUE)
 
-<!-- ```{r ref_mis_init} -->
-<!-- misclassified <- ref.class %>% -->
-<!--   filter(classification != reference) %>% -->
-<!--   group_by(site, ID, classification, reference)  %>% -->
-<!--   tally()%>% -->
-<!--   dplyr::arrange(desc(n)) -->
+ref.class.bwi <- merge(ref.class.bwi, ref.bwi@data ,by.x="ID", by.y="X", all = TRUE)
 
+# rename columns
+colnames(ref.class.bwi)[2] <- "classification"
 
-<!-- # plotsize <- ref.class %>% -->
-<!-- #   group_by(site, ID, reference) %>% -->
-<!-- #   summarise(n = n()) %>% -->
-<!-- #   dplyr::arrange(desc(n)) -->
-<!-- #  -->
-<!-- # ref.class.mis <- merge(plotsize, misclassified ,by=c("site", "ID"), all.y = TRUE) -->
+ref.class.bwi <- ref.class.bwi %>% rename(reference = BA)
 
 
-<!-- ``` -->
+# revalue classificaton data
+ref.class.bwi$classification <- as.factor(ref.class.bwi$classification)
 
-<!-- ```{r plot_ref_mis , fig.cap= "Misclassified reference data"} -->
+ref.class.bwi$classification <- plyr::revalue(ref.class.bwi$classification, c("6"="Eiche", 
+                    "1"="Buche",
+                    "3"="Fichte",
+                    "2"="Douglasie",
+                    "4"="Kiefer",
+                    "5"="Laerche"))
 
-<!-- reference <- sf::st_as_sf(ref.all) -->
+ref.class.sp <- sp::merge(ref.bwi, ref.class.bwi, by= c("Tnr", "Enr"))
+
+#mapview(ref.class.sp, zcol="reference", col.regions = pal.ref)
+
+library(spdplyr)
+misclassified <- ref.class.sp %>% mutate(result = if_else(classification != reference,"wrong", "right"))
+#mapview(misclassified, zcol="result", col.regions = c("green", "red"))
+```
 
 
-<!-- ID.temp <- as.character(misclassified[1,"ID"])[[1]] -->
-<!-- site.temp <- misclassified[1,"site"][[1]] -->
+**Error Matrix**
+```{r plot_bwi_class_em}
+cm<- confusionMatrix(data = ref.class.bwi$classification, reference = ref.class.bwi$reference)
+cm.df <- as.data.frame.matrix(cm$table)
 
-<!-- mis<-reference %>% filter(site == site.temp,  -->
-<!--                           ID == ID.temp) -->
+cm.df %>%
+  knitr::kable("html", escape = F, rownames = T,)%>%
+  kable_styling("hover", full_width = F) 
 
-<!-- ext.temp = extent(xmin(extent(mis))-250,  -->
-<!--                   xmin(extent(mis))+300, -->
-<!--                   ymin(extent(mis))-250,  -->
-<!--                   ymin(extent(mis))+300) -->
+```
 
 
-<!-- img.class.mis <- crop(img.class, ext.temp) -->
+**Respective Accuracy**
+```{r print_ref_acc}
+print(cm$overall[1:2])
+```
 
-<!-- plot(img.class.mis, col =palette, ext=ext.temp, axes=FALSE, box=FALSE) -->
-<!-- plot(mis$geometry, add=T) -->
-<!-- ``` -->
+
+## Misclassifications
+
+```{r ref_mis_init}
+misclassified <- ref.class.bwi %>%
+  filter(classification != reference)
+
+```
+
+
+
+### Masking
+
+#### Tracks, Ways, ect. {.tabset .tabset-pills} 
+
+Forest tracks, ways and official streets cut through the forest. Along these lines the spectral reflectances are heavily influenced by the surface material. Hence, the classification certainty is much lower along these features and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/sol_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/sol_probability_osm.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/sol_species.jpg")
+```
+
+#### Unstocked forest {.tabset .tabset-pills} 
+
+In many areas the forest stocking changed in recent years due to drought, wind, bark beetle and other stressors. In these areas where healthy tree cover has been lost (and in these areas where it has never been) the reflectances are totally different from reflectances in healthy forest conditions. Hence, the classification certainty is much lower in these areas and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/har_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/har_probability.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/har_species.jpg")
+```
+
+#### Atmospheric disturbances {.tabset .tabset-pills}
+
+Atmospheric conditions, namely haze, clouds, contrails and other aerosols, have a strong influence on the reflectance values. In areas where they are not correctly masked or corrected the classification certainty is much lower and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/goe_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/goe_probability.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%"}
+knitr::include_graphics("../data/img/goe_species.jpg")
+```
 
