@@ -267,19 +267,19 @@ levelplot(img.prob.hei,  margin = list(axis = TRUE, scales=list(x= c(60,80), y =
 Classification probabilities were extracted for each pixel inside reference polygons. The extracted values grant insight in classification certainty by tree species and reference site.
 
 ```{r plot_ref_prob_init}
-clip <- crop(img.prob, extent(ref.all))
+#clip <- crop(img.prob, extent(ref.all))
 
-ref.prob.sol <- raster::extract(clip, ref.sol, df=TRUE)
+ref.prob.sol <- raster::extract(img.prob, ref.sol, df=TRUE)
 ref.prob.sol$ID <- as.factor(ref.prob.sol$ID)
 ref.prob.sol <- merge(ref.prob.sol, ref.sol@data ,by="ID", all = TRUE)
 
 
-ref.prob.har <- raster::extract(clip, ref.har, df=TRUE)
+ref.prob.har <- raster::extract(img.prob, ref.har, df=TRUE)
 ref.prob.har$ID <- as.factor(ref.prob.har$ID)
 ref.prob.har <- merge(ref.prob.har, ref.har@data ,by="ID", all = TRUE)
 
 
-ref.prob.hei <- raster::extract(clip, ref.hei, df=TRUE)
+ref.prob.hei <- raster::extract(img.prob, ref.hei, df=TRUE)
 ref.prob.hei$ID <- as.factor(ref.prob.hei$ID)
 ref.prob.hei <- merge(ref.prob.hei, ref.hei@data ,by="ID", all = TRUE)
 
@@ -306,19 +306,19 @@ fig
 Class predictions for all reference pixels were extracted from the model prediction raster. These predictions were thought to be compared with the reference data label to produce an error matrix. The accuracy was expected to be biased since we used part of the reference data for training the model. But instead, all reference data was classified correctly. This might suggest that the model is overfitted to the reference data, performing very well on the reference data but weaker outside.
 
 ```{r plot_ref_class_init}
-clip <- crop(img.class, extent(ref.all))
+#clip <- crop(img.class, extent(ref.all))
 
-ref.class.sol <- raster::extract(clip, ref.sol, df=TRUE)
+ref.class.sol <- raster::extract(img.class, ref.sol, df=TRUE)
 ref.sol@data$rownumber <- as.integer(rownames(ref.sol@data))+1
 ref.class.sol <- merge(ref.class.sol, ref.sol@data ,by.x="ID", by.y="rownumber", all = TRUE)
 
 
-ref.class.har <- raster::extract(clip, ref.har, df=TRUE)
+ref.class.har <- raster::extract(img.class, ref.har, df=TRUE)
 ref.har@data$rownumber <- as.integer(rownames(ref.har@data))+1
 ref.class.har <- merge(ref.class.har, ref.har@data ,by.x="ID", by.y="rownumber", all = TRUE)
 
 
-ref.class.hei <- raster::extract(clip, ref.hei, df=TRUE)
+ref.class.hei <- raster::extract(img.class, ref.hei, df=TRUE)
 ref.hei@data$rownumber <- as.integer(rownames(ref.hei@data))+1
 ref.class.hei <- merge(ref.class.hei, ref.hei@data ,by.x="ID", by.y="rownumber", all = TRUE)
 
@@ -380,7 +380,7 @@ ref.bwi <- spTransform(ref_ni.sp, CRS("+init=epsg:4326"))
 
 
 
-ref.class.bwi <- raster::extract(clip, ref.bwi, df=TRUE)
+ref.class.bwi <- raster::extract(img.class, ref.bwi, df=TRUE)
 
 ref.class.bwi <- merge(ref.class.bwi, ref.bwi@data ,by.x="ID", by.y="X", all = TRUE)
 
@@ -446,17 +446,17 @@ Forest tracks, ways and official streets cut through the forest. Along these lin
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/sol_s2.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/sol_probability_osm.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_probability_osm.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/sol_species.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_species.jpg")
 ```
 
 #### Unstocked forest {.tabset .tabset-pills} 
@@ -465,17 +465,17 @@ In many areas the forest stocking changed in recent years due to drought, wind, 
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/har_s2.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/har_probability.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_probability.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/har_species.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_species.jpg")
 ```
 
 #### Atmospheric disturbances {.tabset .tabset-pills}
@@ -484,16 +484,16 @@ Atmospheric conditions, namely haze, clouds, contrails and other aerosols, have 
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/goe_s2.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/goe_probability.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_probability.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("../data/img/goe_species.jpg")
+knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_species.jpg")
 ```
 
