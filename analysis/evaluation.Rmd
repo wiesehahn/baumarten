@@ -446,17 +446,17 @@ Forest tracks, ways and official streets cut through the forest. Along these lin
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_s2.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_probability_osm.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_probability_osm.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/sol_species.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_species.jpg")
 ```
 
 #### Unstocked forest {.tabset .tabset-pills} 
@@ -465,17 +465,17 @@ In many areas the forest stocking changed in recent years due to drought, wind, 
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_s2.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_probability.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_probability.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/har_species.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_species.jpg")
 ```
 
 #### Atmospheric disturbances {.tabset .tabset-pills}
@@ -484,16 +484,16 @@ Atmospheric conditions, namely haze, clouds, contrails and other aerosols, have 
 
 ##### Sentinel-2 {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_s2.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_s2.jpg")
 ```
 
 ##### Probability {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_probability.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_probability.jpg")
 ```
 
 ##### Classification {-}
 ```{r, out.width = "100%"}
-knitr::include_graphics("https://github.com/wiesehahn/baumarten/blob/master/docs/figure/evaluation.Rmd/goe_species.jpg")
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_species.jpg")
 ```
 
