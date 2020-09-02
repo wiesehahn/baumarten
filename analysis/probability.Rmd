@@ -1,0 +1,304 @@
+---
+title: "probability"
+author: "wiesehahn"
+date: "2020-08-31"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(# fig.width=12, fig.height=8, 
+  echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r setup, include=FALSE}
+library(viridis)
+library(kableExtra)
+library(readr)
+library(plotly)
+library(here)
+library(recipes)
+library(caret)
+library(ranger)
+library(ggplot2)
+```
+
+
+```{r load_reference}
+# load reference data
+
+filename = here("data/reference/train_test/train_test.rds")
+
+ref <- readRDS(filename)
+
+# split in train and test data
+index <- createDataPartition(y = ref$Baumart, p = .7, list = FALSE)
+training <- ref[index, ]
+testing <- ref[-index, ]
+```
+
+### Probabilities
+
+```{r rf_init}
+# for reproducibility
+set.seed(42)
+
+# random forest parameters
+ntree <- 500
+nodesize <- 1
+splitvariables <- 2
+
+predictors <- names(training %>% select(- contains("_VI"), -Baumart))
+f <- as.formula(paste("Baumart", paste(predictors, collapse=" + "), sep=" ~ "))
+
+```
+
+```{r rf_prob}
+
+# ranger RF model
+rf_all <- ranger(
+    formula   = f, 
+    data      = training, 
+    min.node.size = nodesize,
+    mtry      = splitvariables,
+    num.trees = ntree,
+    probability = TRUE)
+
+# predict testset probability
+pred <- predict(rf_all, testing)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing$Baumart)
+test.df <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df <- test.df %>% 
+  rename(reference = "testing$Baumart") %>%
+  mutate(prediction = colnames(test.df[2:7])[max.col(test.df[2:7], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+
+```
+
+#### Probability distribution
+
+```{r plot_hist, fig.cap="Relative probability distributions for correctly und uncorrectly classified forest stands by tree species"}
+
+test.df.long<- test.df %>%
+  reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+
+
+
+ggplot(test.df.long,aes(x=probability,fill=result))+
+  geom_histogram(aes(y=0.1* ..density..),
+                 alpha=0.5,position="dodge",binwidth=0.1)+
+  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank())
+
+
+# bu <- plot_ly(test.df, x= ~BU, color = ~result) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# dgl <- plot_ly(test.df, x= ~DGL, color = ~result, showlegend=F) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# fi <- plot_ly(test.df, x= ~FI, color = ~result, showlegend=F) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# ki <- plot_ly(test.df, x= ~KI, color = ~result, showlegend=F) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# lae <- plot_ly(test.df, x= ~LAE, color = ~result, showlegend=F) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# tei <- plot_ly(test.df, x= ~TEI, color = ~result, showlegend=F) %>% 
+#   add_histogram(histnorm = "probability", nbinsx = 20) %>%
+#   layout( bargap=0.1)
+# 
+# subplot(bu, dgl, fi, ki, lae, tei, nrows = 6, shareX = TRUE, shareY = TRUE, titleX = F)
+```
+
+#### Reduced number of classes {.tabset .tabset-pills} 
+
+What happens to prediction probabilities if the number of predicted tree species is reduced?
+
+To test this I trained the model on just four species (beech, spruce, pine, oak)
+
+```{r rf_reduced_species}
+# ranger RF model
+rf_reduced <- ranger(
+    formula   = f, 
+    data      = training %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI")), 
+    min.node.size = nodesize,
+    mtry      = splitvariables,
+    num.trees = ntree,
+    probability = TRUE)
+
+```
+
+##### 6-Class-Accuracy
+
+The effect on validation accuracy, including all 6 tree species is tested.
+
+```{r rf_reduced_6-class-accuracy}
+# predict testset probability
+pred <- predict(rf_reduced, testing)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing$Baumart)
+test.df.reduced <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df.reduced <- test.df.reduced %>% 
+  rename(reference = "testing$Baumart") %>%
+  mutate(prediction = colnames(test.df.reduced[2:5])[max.col(test.df.reduced[2:5], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+
+test.df.reduced.6class <- test.df.reduced
+```
+
+*Error Matrix*
+```{r reduced_species_6-class_matrix}
+#insert missing tree species levels
+test.df.reduced$prediction <- factor(test.df.reduced$prediction, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+
+cm.reduced<- confusionMatrix(data = test.df.reduced$prediction, reference = test.df.reduced$reference)
+cm.reduced.df <- as.data.frame.matrix(cm.reduced$table)
+
+
+cm.reduced.df %>%
+  mutate_all(~ifelse(. > 400,
+                  cell_spec(., "html", color = "black", bold = T),
+                  ifelse(. > 0,
+                         cell_spec(., color = "white", bold = T, background = spec_color(., option = "A", direction= -1, scale_from = c(0,nrow(testing)/20))),
+                         cell_spec(., "html", color = "grey")
+                         )
+                  )
+             ) %>%
+  mutate(Baumart = cell_spec(c("BU","DGL","FI","KI", "LAE","TEI"), "html",bold = T)) %>%
+  select(Baumart, everything(.)) %>%
+  
+  kable("html", escape = F, rownames = TRUE, align=c('r', rep('c', 6))) %>%
+  add_header_above(c("", "Reference" = 6)) %>%
+  kable_styling("hover", full_width = F)
+```
+
+We can see, that Douglas fir is mainly classified as Spruce, while Larch is classified as either Beech, Pine or Oak!
+
+
+*Respective Accuracy*
+```{r reduced_species_6-class_validation_accuracy}
+cm.reduced.df <- as.data.frame(t(cm.reduced$overall[1:4]))
+
+kable(cm.reduced.df) %>% kable_styling(full_width = F)
+```
+
+
+##### 4-Class-Accuracy
+
+The effect on validation accuracy, including only the classes on which the model was trained.
+
+```{r rf_reduced_4-class-accuracy}
+# predict testset probability
+testing_reduced <- testing %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI"))
+
+pred <- predict(rf_reduced, testing_reduced)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing_reduced$Baumart)
+test.df.reduced <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df.reduced <- test.df.reduced %>% 
+  rename(reference = "testing_reduced$Baumart") %>%
+  mutate(prediction = colnames(test.df.reduced[2:5])[max.col(test.df.reduced[2:5], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+```
+
+
+*Error Matrix*
+```{r reduced_species_4-class_matrix}
+#insert missing tree species levels
+test.df.reduced$prediction <- factor(test.df.reduced$prediction, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+
+cm.reduced<- confusionMatrix(data = test.df.reduced$prediction, reference = test.df.reduced$reference)
+cm.reduced.df <- as.data.frame.matrix(cm.reduced$table)
+
+
+cm.reduced.df %>%
+  mutate_all(~ifelse(. > 400,
+                  cell_spec(., "html", color = "black", bold = T),
+                  ifelse(. > 0,
+                         cell_spec(., color = "white", bold = T, background = spec_color(., option = "A", direction= -1, scale_from = c(0,nrow(testing)/20))),
+                         cell_spec(., "html", color = "grey")
+                         )
+                  )
+             ) %>%
+  mutate(Baumart = cell_spec(c("BU","DGL","FI","KI", "LAE","TEI"), "html",bold = T)) %>%
+  select(Baumart, everything(.)) %>%
+  
+  kable("html", escape = F, rownames = TRUE, align=c('r', rep('c', 6))) %>%
+  add_header_above(c("", "Reference" = 6)) %>%
+  kable_styling("hover", full_width = F)
+```
+
+
+
+*Respective Accuracy*
+```{r reduced_species_4-class_validation_accuracy}
+cm.reduced.df <- as.data.frame(t(cm.reduced$overall[1:4]))
+
+kable(cm.reduced.df) %>% kable_styling(full_width = F)
+```
+
+
+#### Boxplots
+
+```{r init_reduced_species_boxplot}
+
+test.df.reduced.long<- test.df.reduced.6class %>%
+  reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+
+#insert missing tree species levels
+test.df.reduced.long$species <- factor(test.df.reduced.long$species, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+dat <- merge(test.df.reduced.long, test.df.long %>% select(Row.names, species, prediction, probability), by=c("Row.names", "species"), all =  F)
+
+dat <- dat %>% rename(reduced.species = "probability.x",
+                      all.species = "probability.y",
+                      reduced.prediction = "prediction.x",
+                      all.prediction = "prediction.y")
+
+dat <- dat %>% reshape2::melt(id.vars = c("Row.names","species", "reference", "all.prediction", "reduced.prediction", "result"),
+                 variable.name = "model",
+                 value.name = "probability")
+```
+
+##### Correct probabilities
+```{r plot_reduced_species_correct, fig.cap= "propabilities of predicted tree species  which were classified correct"}
+
+# propabilities of predicted tree species  which were classified correct
+plot_ly(dat %>% filter(result=="right", reduced.prediction == species),x= ~reference, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group")
+
+```
+
+Reducing the number of predicted tree species results in higher model certainties for all species. 
+
+##### Uncorrect probabilties
+```{r plot_reduced_species_uncorrect1, fig.cap= "propabilities of predicted tree species  which were classified uncorrect (e.g. predicted probability of beech which is in fact oak)"}
+
+# propabilities of predicted tree species  which were classified uncorrect (e.g. predicted probability of beech which is in fact oak)
+plot_ly(dat %>% filter(result=="wrong", reduced.prediction == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group")
+
+```
+
+Quite unsurprisingly the (false) probabilities of uncorrectly classified forest stands rise with reduced number of species if we are considering all reference data, including Larch and Douglas fir. These stands are classified as one of the other four species and hence are uncorrect by default.
+
+```{r plot_reduced_species_uncorrect2, fig.cap= "propabilities of reference tree species  which were classified uncorrect (e.g. probability of oak which was predicted as beech)"}
+
+# propabilities of reference tree species  which were classified uncorrect (e.g. probability of oak which was classified as beech)
+plot_ly(dat %>% filter(result=="wrong", reference == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group")
+```
+
+Probabilities for the (true) reference species, which were classified uncorrectly as another species increased slighty with reduced number of predicted species. This is mainly due to the fact that probabilities are split among four instead of six species.
+
+

@@ -301,7 +301,9 @@ fig
 -----------------
 
 
-## Reference Accuracy
+## Mapping Accuracy
+
+### Reference data for validation
 
 Class predictions for all reference pixels were extracted from the model prediction raster. These predictions were thought to be compared with the reference data label to produce an error matrix. The accuracy was expected to be biased since we used part of the reference data for training the model. But instead, all reference data was classified correctly. This might suggest that the model is overfitted to the reference data, performing very well on the reference data but weaker outside.
 
@@ -346,7 +348,7 @@ ref.class$classification <- plyr::revalue(ref.class$classification, c("6"="Eiche
 ```
 
 **Error Matrix**
-```{r plot_ref_class_em}
+```{r plot_ref_class_em, fig.cap= "Error matrix for reference data, which was also used for training the random forest model"}
 cm<- confusionMatrix(data = ref.class$classification, reference = ref.class$reference)
 cm.df <- as.data.frame.matrix(cm$table)
 
@@ -357,7 +359,7 @@ cm.df %>%
 ```
 
 
-### Inventory data as reference
+### Inventory data for validation
 
 BWI-plots in Lower Saxony were filtered by certain criteria to serve as validation data. Only plots with a relative tree species proportion of more than 75% in the main canopy layer for one of the classified tree species groups were considered.
 Class predictions for all pixels covered by these plots were extracted from the model prediction raster and compared against the inventory data.
@@ -411,7 +413,7 @@ misclassified <- ref.class.sp %>% mutate(result = if_else(classification != refe
 
 
 **Error Matrix**
-```{r plot_bwi_class_em}
+```{r plot_bwi_class_em, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
 cm<- confusionMatrix(data = ref.class.bwi$classification, reference = ref.class.bwi$reference)
 cm.df <- as.data.frame.matrix(cm$table)
 
@@ -445,17 +447,17 @@ misclassified <- ref.class.bwi %>%
 Forest tracks, ways and official streets cut through the forest. Along these lines the spectral reflectances are heavily influenced by the surface material. Hence, the classification certainty is much lower along these features and tree species might be classified wrong.
 
 ##### Sentinel-2 {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image in the Solling area, which was used for tree species predictions"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_s2.jpg")
 ```
 
 ##### Probability {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Classification probability in the Solling area (of tree species with highest probability per pixel)"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_probability_osm.jpg")
 ```
 
 ##### Classification {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Tree species classification result in the Solling area"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_species.jpg")
 ```
 
@@ -464,17 +466,17 @@ knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/m
 In many areas the forest stocking changed in recent years due to drought, wind, bark beetle and other stressors. In these areas where healthy tree cover has been lost (and in these areas where it has never been) the reflectances are totally different from reflectances in healthy forest conditions. Hence, the classification certainty is much lower in these areas and tree species might be classified wrong.
 
 ##### Sentinel-2 {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image in the Harz area, which was used for tree species predictions"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_s2.jpg")
 ```
 
 ##### Probability {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Classification probability in the Harz area (of tree species with highest probability per pixel)"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_probability.jpg")
 ```
 
 ##### Classification {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Tree species classification result in the Harz area"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_species.jpg")
 ```
 
@@ -483,17 +485,17 @@ knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/m
 Atmospheric conditions, namely haze, clouds, contrails and other aerosols, have a strong influence on the reflectance values. In areas where they are not correctly masked or corrected the classification certainty is much lower and tree species might be classified wrong.
 
 ##### Sentinel-2 {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image around Goettingen, which was used for tree species predictions"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_s2.jpg")
 ```
 
 ##### Probability {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Classification probability around Goettingen (of tree species with highest probability per pixel)"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_probability.jpg")
 ```
 
 ##### Classification {-}
-```{r, out.width = "100%"}
+```{r, out.width = "100%", fig.cap= "Tree species classification result around Goettingen"}
 knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_species.jpg")
 ```
 

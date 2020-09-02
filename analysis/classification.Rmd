@@ -48,14 +48,17 @@ The *number of trees* was held constant at a value of 500 because generally it i
 Parameters for which a gridsearch was done are the *number of variables per split* and the *minimum terminal node size*. 
 
 ```{r read, message=FALSE, warning=FALSE}
-library(readr)
-library(tidyverse)
-library(caret)
-library(kableExtra)
 
+filename = here("data/reference/train_test/train_test.rds")
+
+if (file.exists(filename)){
+  
+  ref <- readRDS(filename)
+  
+} else{
+  
 # read reference data exported by google earth engine
 train_test <- read_csv(here("data/reference/train_test/S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi.csv"))
-
 
 # as factor
 cols <- c("BA", "Baumart", "wbz", "Gebiet")
@@ -69,6 +72,13 @@ ref <- train_test %>%
 # subset
 ref <- ref %>% 
   select(-X1, -ID, -BA, - wbz, -Gebiet)
+
+  
+  # save data
+  saveRDS(ref, filename)
+  
+}
+
 
 # split in train and test data
 index <- createDataPartition(y = ref$Baumart, p = .7, list = FALSE)
@@ -126,16 +136,9 @@ print(rf_all_fit)
 
 
 ```{r plot_gridsearch_result, fig.cap= "plotted gridsearch result for the number of predictor variables and minimal node size"}
-rf_all_fit$results %>%
-  plot_ly(x= ~mtry) %>%
-  add_trace(y = ~Accuracy, 
-            type = "scatter",
-            mode = 'lines+markers', 
-            color= ~ as.factor(min.node.size), colors = viridis_pal(option = "D")(3),
-            error_y = ~list(array = AccuracySD),
-            text = ~paste("Accuracy: ", Accuracy, "<br>AccuracySD:", AccuracySD)
-            ) %>%
-  layout(xaxis = list(title="Randomly Selected Predictors at each split"),
+
+plot_ly(rf_all_fit$results, y = ~Accuracy, x = ~as.factor(mtry), color = ~as.factor(min.node.size), type = "box") %>%
+    layout(xaxis = list(title="Randomly Selected Predictors at each split"),
          yaxis = list(title="Accuracy (Cross-Validation)")) 
 
 ```
@@ -157,7 +160,7 @@ whichTwoPct <- tolerance(rf_all_fit$results, metric = "Accuracy",
 kable(rf_all_fit$results[whichTwoPct,], row.names = F, align="c") %>% kable_styling(full_width = F)
 ```
 
-The results indicate that in terms of prediction accuracy a model with least variables per split (2) and a minimal node size of 1 is sufficient enough.
+The results indicate that in terms of prediction accuracy a model with just `r rf_all_fit$results[whichTwoPct,"mtry"]` variables per split and a minimal node size of `r rf_all_fit$results[whichTwoPct,"min.node.size"]` is sufficient enough.
 
 -----------------
 
@@ -226,7 +229,7 @@ As determined before, model parameters *minimal node size* and *variables per sp
 Input variables considered as predictor variables in this study comprise: 
 
 *Sentinel-2 bands and indices*
-- Bands: 'B2','B3','B4','B5','B6','B7','B8','B8A','B11','B12' ???
+- Bands: *B2*,*B3*,*B4*,*B5*,*B6*,*B7*,*B8*,*B8A*,*B11*,*B12* ???
 - Indices: ???
 
 In model fitting the relative variable importance is calculated to give an impression which predictor variables are valuable and which are less valuable for the prediction process. However, correlation between variables is not taken into account.
@@ -236,7 +239,10 @@ In model fitting the relative variable importance is calculated to give an impre
 # variable importance
 imp <- varImp(rf_all_fit)
 
-plot(imp)
+plot_ly(imp$importance, y = ~reorder(row.names(imp$importance),Overall), x = ~Overall, type = 'bar', orientation = 'h') %>%
+  layout(xaxis = list(title="Importance"),
+         yaxis = list(title=""))
+
 ```
 
 As we can see the importance metric varies between predictor variables, suggesting that the choice of predictor variables very much influences our model. While more predictor variables might add information they are also complicating the model and might even introduce noise. Hence, a reduction of predictor variables might enhance our model.
@@ -301,7 +307,9 @@ if (file.exists(filename)){
 
 ```{r rfe_plot_model_performance, echo=FALSE, fig.cap= "model performance by number of features evaluated with Recursive Feature Elimitaion"}
 
-plot_ly(rfProfile$resample, y = ~Accuracy, color = ~as.factor(Variables), colors= viridis_pal(option = "D")(26), type = "box")
+plot_ly(rfProfile$resample, y = ~Accuracy, x = ~as.factor(Variables),  type = "box") %>%
+  layout(xaxis = list(title="Number of predictor variables"),
+         yaxis = list(title="Accuracy"))
  
 ```
 
@@ -315,6 +323,14 @@ predictors.df <- as.data.frame(predictors(rfProfile)) %>% rename("prediction fea
 kable(predictors.df, row.names = T) %>% kable_styling(full_width = F, position = "left")
 ```
 
+**Respective Accuracy**
+
+```{r rfe_model_accuracy, echo=FALSE, fig.cap= "model performance"}
+
+kable(rfProfile$results[which.max(rfProfile$results$Accuracy),], row.names = F) %>% kable_styling(full_width = F)
+
+```
+
 -----------------
 
 #### Model Simplification
@@ -323,10 +339,10 @@ To simplify the model without loosing prediction accuracy we search for a model 
 
 ```{r rfe_simp_model, echo=FALSE, fig.cap= "RFE-simplified model performance"}
 # get simplest model with similar accuracy
-whichTwoPct <- tolerance(rfProfile$results, metric = "Accuracy", 
+whichTwoPct_variables <- tolerance(rfProfile$results, metric = "Accuracy", 
                          tol = 2, maximize = TRUE)
 
-var_num <- rfProfile$results[whichTwoPct,"Variables"]
+var_num <- rfProfile$results[whichTwoPct_variables,"Variables"]
 ```
 
 As a result we get a model using the following `r var_num` prediction variables instead of all 26 variables, which has almost the same accuracy.
@@ -347,7 +363,7 @@ kable(bestVar.df, row.names = T) %>% kable_styling(full_width = F, position = "l
 
 ```{r rfe_simp_model_accuracy, echo=FALSE, fig.cap= "RFE-simplified model performance"}
 
-kable(rfProfile$results[whichTwoPct,], row.names = F) %>% kable_styling(full_width = F)
+kable(rfProfile$results[whichTwoPct_variables,], row.names = F) %>% kable_styling(full_width = F)
 
 ```
 
@@ -357,13 +373,17 @@ kable(rfProfile$results[whichTwoPct,], row.names = F) %>% kable_styling(full_wid
 
 Using the results from previous analysis we train a model with best performing predictor variables and model-hyperparameters. 
 
-The *predictor variables* are listed in \@ref(tab:rfe_tab_predictors_simp):
+The *predictor variables* are:
+
+```{r rfe_tab_predictors_simp2}
+kable(bestVar.df, row.names = T) %>% kable_styling(full_width = F, position = "left")
+```
 
 
 The *hyperparameters* are:
 
-* Number of variables to possibly split at in each node (mtry) = 2
-* Minimal node size = 1
+* Number of variables to possibly split at in each node (mtry) = `r rf_all_fit$results[whichTwoPct,"mtry"]`
+* Minimal node size = `r rf_all_fit$results[whichTwoPct,"min.node.size"]`
 * Number of trees = 500 (this was not optimized, as more trees usually give better results but the maximum number is limited by computation power)
 
 -----------------
@@ -382,8 +402,8 @@ f <- as.formula(paste("Baumart", paste(bestVar, collapse=" + "), sep=" ~ "))
 model.simp <- ranger(formula = f, 
                         data = training,
                         num.trees = 500, 
-                        mtry = 2,
-                        min.node.size = 1,
+                        mtry = rf_all_fit$results[whichTwoPct,"mtry"],
+                        min.node.size = rf_all_fit$results[whichTwoPct,"min.node.size"],
                         importance = "impurity")
 
 testing.pred.simp <- predict(model.simp, testing)
@@ -425,18 +445,22 @@ kable(cm.simp.acc.df) %>% kable_styling(full_width = F)
 
 -----------------
 
+#### Comparison to other models 
+
+(models use the same hyperparameters as above)
+
 ```{r rf_init}
 # for reproducibility
 set.seed(42)
 
 # random forest parameters
 ntree <- 500
-nodesize <- 1
-splitvariables <- 2
+nodesize <- rf_all_fit$results[whichTwoPct,"min.node.size"]
+splitvariables <- rf_all_fit$results[whichTwoPct,"mtry"]
 
 ```
 
-#### Model using Sentinel-2 bands
+##### Model using Sentinel-2 bands
 
 ```{r rf_bands}
 # predict on sentinel-2 bands only
@@ -465,7 +489,7 @@ cm.acc.df <- as.data.frame(t(cm$overall[1:4]))
 kable(cm.acc.df) %>% kable_styling(full_width = F)
 ```
 
-#### Model using Sentinel-2 indices
+##### Model using Sentinel-2 indices
 
 ```{r rf_index}
 # predict on sentinel-2 index bands only
@@ -494,7 +518,7 @@ cm.acc.df <- as.data.frame(t(cm$overall[1:4]))
 kable(cm.acc.df) %>% kable_styling(full_width = F)
 ```
 
-#### Model using Sentinel-2 bands and indices
+##### Model using Sentinel-2 bands and indices
 
 ```{r rf_all}
 # predict on sentinel-2 bands and index bands
@@ -523,56 +547,3 @@ cm.acc.df <- as.data.frame(t(cm$overall[1:4]))
 kable(cm.acc.df) %>% kable_styling(full_width = F)
 ```
 
-
-### Model probability
-
-```{r rf_prob}
-# predict probability
-
-predictors <- names(training %>% select(- contains("_VI"), -Baumart))
-
-f <- as.formula(paste("Baumart", paste(predictors, collapse=" + "), sep=" ~ "))
-
-# ranger RF model
-rf_all <- ranger(
-    formula   = f, 
-    data      = training, 
-    min.node.size = nodesize,
-    mtry      = splitvariables,
-    num.trees = ntree,
-    probability = TRUE)
-
-
-pred <- predict(rf_all, testing)
-pred.df <- as.data.frame(pred$predictions)
-ref.df <-  as.data.frame(testing$Baumart)
-test.df <- merge(pred.df, ref.df, by=0, all=TRUE)
-
-test.df <- test.df %>% 
-  rename(reference = "testing$Baumart") %>%
-  mutate(prediction = colnames(test.df[2:7])[max.col(test.df[2:7], ties.method = "first")],
-         result = if_else(reference != prediction,"wrong", "right"))
-
-
-bu <- plot_ly(test.df, x= ~BU, color = ~result) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-dgl <- plot_ly(test.df, x= ~DGL, color = ~result, showlegend=F) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-fi <- plot_ly(test.df, x= ~FI, color = ~result, showlegend=F) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-ki <- plot_ly(test.df, x= ~KI, color = ~result, showlegend=F) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-lae <- plot_ly(test.df, x= ~LAE, color = ~result, showlegend=F) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-tei <- plot_ly(test.df, x= ~TEI, color = ~result, showlegend=F) %>% 
-  add_histogram(histnorm = "probability", nbinsx = 20) %>%
-  layout( bargap=0.1)
-
-subplot(bu, dgl, fi, ki, lae, tei, nrows = 6, shareX = TRUE, shareY = TRUE, titleX = F)
-
-```
