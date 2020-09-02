@@ -27,3 +27,10 @@ wflow_git_commit(all=T)
 wflow_git_push()
 
 wflow_open("preprocessing.Rmd")
+
+wflow_view()
+wflow_publish(c("analysis/classification.Rmd", "analysis/evaluation.Rmd", "analysis/index.Rmd", "analysis/preprocessing.Rmd", "analysis/probability.Rmd"),
+              "Publish all files for myproject")
+wflow_status()
+wflow_publish(c("analysis/index.Rmd", "code/workflow_project_setup.R", "data/reference/train_test/train_test.rds"),
+              "update index")

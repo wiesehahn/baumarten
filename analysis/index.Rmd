@@ -10,5 +10,10 @@ editor_options:
 
 
 
-[Mapping evaluation](evaluation.html)
+- [Mapping evaluation](evaluation.html)
+
+- [Classification](classification.html)
+
+- [Probability](probability.html)
+
 
