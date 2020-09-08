@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="wiesehahn" />
+
+<meta name="date" content="2020-08-31" />
+
+<title>class_reduction.utf8.md</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/master/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">baumarten</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/wiesehahn/baumarten">
+    <span class="fa fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span> workflowr <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2020-09-08
+</p>
+<p>
+<strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>baumarten/analysis/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+</p>
+<p>
+This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
+  href="https://github.com/jdblischak/workflowr">workflowr</a> (version 1.6.2). The <em>Checks</em> tab describes the reproducibility checks that were applied when the results were created. The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date </a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20200723code"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Seed:</strong> <code>set.seed(20200723)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20200723code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20200723)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Session information:</strong> recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomwiesehahnbaumartentree30d98a7a76a689755578bf9d7ef0654820910d96targetblank30d98a7a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/wiesehahn/baumarten/tree/30d98a7a76a689755578bf9d7ef0654820910d96" target="_blank">30d98a7</a> </a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcomwiesehahnbaumartentree30d98a7a76a689755578bf9d7ef0654820910d96targetblank30d98a7a" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/wiesehahn/baumarten/tree/30d98a7a76a689755578bf9d7ef0654820910d96" target="_blank">30d98a7</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/.Rhistory
+    Ignored:    data/sen2/
+
+Unstaged changes:
+    Deleted:    analysis/probability.Rmd
+    Modified:   code/workflow_project_setup.R
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were made to the R Markdown (<code>analysis/class_reduction.Rmd</code>) and HTML (<code>docs/class_reduction.html</code>) files. If you’ve configured a remote Git repository (see <code>?wflow_git_remote</code>), click on the hyperlinks in the table below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/wiesehahn/baumarten/blob/30d98a7a76a689755578bf9d7ef0654820910d96/analysis/class_reduction.Rmd" target="_blank">30d98a7</a>
+</td>
+<td>
+wiesehahn
+</td>
+<td>
+2020-09-08
+</td>
+<td>
+Change filenames, add analysis
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="class-reduction" class="section level1">
+<h1>Class reduction</h1>
+<div id="background" class="section level2">
+<h2>Background</h2>
+<p>As we saw in the part about <a href="model_tuning.html">Model Tuning</a> there is no significant impact by haperparameter settings or the predictor variables. However, the performance varies between species. As we can see in the following table douglas fir, pine and larch have much lower prediction accuracies than beech or spruce. This might be related to a lower number of reference data but it might also come from correlated reflectancies.</p>
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+Balanced Accuracy
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Class: BU
+</td>
+<td style="text-align:right;">
+0.9502580
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: DGL
+</td>
+<td style="text-align:right;">
+0.8910167
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: FI
+</td>
+<td style="text-align:right;">
+0.9721655
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: KI
+</td>
+<td style="text-align:right;">
+0.9166467
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: LAE
+</td>
+<td style="text-align:right;">
+0.9034690
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: TEI
+</td>
+<td style="text-align:right;">
+0.9454064
+</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>So what happens to prediction accuracies if the number of predicted tree species is reduced?</p>
+</blockquote>
+<p>To test this a model was trained on just four species (beech, spruce, pine, oak) excluding larch and douglas fir, since the 6-class model performs bad for them and additionally they have a low abundance.</p>
+<div id="accuracy" class="section level3">
+<h3>Accuracy</h3>
+<p>The effect of less prediction classes in the RF model can be seen below. Because the model is trained on 4 classes excluding larch and douglas fir, none of the reference pixels is classified as one of those. Including all 6 tree species in the validation dataset we can see, that Douglas fir is mainly classified as Spruce, while Larch is classified as either Beech, Pine or Oak!</p>
+<em>Error Matrix</em>
+<table class="table table-hover" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="border-bottom:hidden" colspan="1">
+</th>
+<th style="border-bottom:hidden; padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="6">
+<div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">
+Reference
+</div>
+</th>
+</tr>
+<tr>
+<th style="text-align:right;">
+Baumart
+</th>
+<th style="text-align:center;">
+BU
+</th>
+<th style="text-align:center;">
+DGL
+</th>
+<th style="text-align:center;">
+FI
+</th>
+<th style="text-align:center;">
+KI
+</th>
+<th style="text-align:center;">
+LAE
+</th>
+<th style="text-align:center;">
+TEI
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">BU</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: black !important;">2308</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 251, 189, 1) !important;">2</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 246, 184, 1) !important;">8</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 249, 187, 1) !important;">4</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(68, 15, 118, 1) !important;">356</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(242, 100, 92, 1) !important;">148</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">DGL</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">FI</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(33, 17, 78, 1) !important;">394</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: black !important;">2786</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(253, 231, 169, 1) !important;">22</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(254, 196, 136, 1) !important;">55</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 251, 189, 1) !important;">1</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">KI</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 236, 174, 1) !important;">16</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(253, 154, 106, 1) !important;">97</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(254, 204, 143, 1) !important;">49</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: black !important;">538</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(112, 31, 129, 1) !important;">307</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 251, 189, 1) !important;">2</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">LAE</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+<td style="text-align:center;">
+<span style="     color: grey !important;">0</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+<span style=" font-weight: bold;    ">TEI</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(254, 169, 115, 1) !important;">83</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(254, 216, 154, 1) !important;">35</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 247, 185, 1) !important;">5</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(252, 249, 187, 1) !important;">4</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: rgba(161, 48, 126, 1) !important;">251</span>
+</td>
+<td style="text-align:center;">
+<span style=" font-weight: bold;    color: black !important;">1673</span>
+</td>
+</tr>
+</tbody>
+</table>
+<em>6-class Accuracy</em> (larch and douglas fir stands are counted as wrong predictions)
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+Accuracy
+</th>
+<th style="text-align:right;">
+Kappa
+</th>
+<th style="text-align:right;">
+AccuracyLower
+</th>
+<th style="text-align:right;">
+AccuracyUpper
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+0.7988845
+</td>
+<td style="text-align:right;">
+0.7340012
+</td>
+<td style="text-align:right;">
+0.7905195
+</td>
+<td style="text-align:right;">
+0.8070587
+</td>
+</tr>
+</tbody>
+</table>
+<em>4-class Accuracy</em> (stands of larch and douglas fir are not considered)
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+Accuracy
+</th>
+<th style="text-align:right;">
+Kappa
+</th>
+<th style="text-align:right;">
+AccuracyLower
+</th>
+<th style="text-align:right;">
+AccuracyUpper
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+0.9552766
+</td>
+<td style="text-align:right;">
+0.936171
+</td>
+<td style="text-align:right;">
+0.9504019
+</td>
+<td style="text-align:right;">
+0.9598003
+</td>
+</tr>
+</tbody>
+</table>
+<em>4-class Accuracy by species</em>
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+Balanced Accuracy
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Class: BU
+</td>
+<td style="text-align:right;">
+0.9641678
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: DGL
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: FI
+</td>
+<td style="text-align:right;">
+0.9867188
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: KI
+</td>
+<td style="text-align:right;">
+0.9688592
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: LAE
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Class: TEI
+</td>
+<td style="text-align:right;">
+0.9507077
+</td>
+</tr>
+</tbody>
+</table>
+<p>Compared to the 6-class model accuracies for all four species increased. Especially the accuracy for pine increased a lot.</p>
+</div>
+<div id="sample-predictions" class="section level3">
+<h3>Sample Predictions</h3>
+<p>The classification probabilities for each class and the final predictions were calculated for study sites to compare the 6-class and the 4-class model visually.</p>
+<div id="harz" class="section level4 tabset tabset-pills">
+<h4>Harz</h4>
+<p>Tree species probabilities and final classification in the Harz area.</p>
+<div id="beech" class="section level5">
+<h5>Beech</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_6-class_bu-1.png" alt="Classification probabilities for beech, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for beech, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_4-class_bu-1.png" alt="Classification probabilities for beech, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for beech, based on 4-class model
+</p>
+</div>
+</div>
+<div id="spruce" class="section level5">
+<h5>Spruce</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_6-class_fi-1.png" alt="Classification probabilities for spruce, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for spruce, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_4-class_fi-1.png" alt="Classification probabilities for spruce, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for spruce, based on 4-class model
+</p>
+</div>
+</div>
+<div id="pine" class="section level5">
+<h5>Pine</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_6-class_ki-1.png" alt="Classification probabilities for pine, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for pine, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_4-class_ki-1.png" alt="Classification probabilities for pine, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for pine, based on 4-class model
+</p>
+</div>
+</div>
+<div id="oak" class="section level5">
+<h5>Oak</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_6-class_tei-1.png" alt="Classification probabilities for oak, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for oak, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_4-class_tei-1.png" alt="Classification probabilities for oak, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for oak, based on 4-class model
+</p>
+</div>
+</div>
+<div id="maximum" class="section level5">
+<h5>Maximum</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_6-class_max-1.png" alt="Maximum classification probabilitiy, based on 6-class model" width="672" />
+<p class="caption">
+Maximum classification probabilitiy, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_probability_4-class_max-1.png" alt="Maximum classification probability, based on 4-class model" width="672" />
+<p class="caption">
+Maximum classification probability, based on 4-class model
+</p>
+</div>
+</div>
+<div id="classification" class="section level5">
+<h5>Classification</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_prediction_6-class-1.png" alt="Tree species predition, based on 6-class model" width="672" />
+<p class="caption">
+Tree species predition, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_harz_prediction_4-class-1.png" alt="Tree species predition, based on 4-class model" width="672" />
+<p class="caption">
+Tree species predition, based on 4-class model
+</p>
+</div>
+</div>
+</div>
+<div id="solling" class="section level4 tabset tabset-pills">
+<h4>Solling</h4>
+<p>Tree species probabilities and final classification in the Solling area.</p>
+<div id="beech-1" class="section level5">
+<h5>Beech</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_6-class_bu-1.png" alt="Classification probabilities for beech, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for beech, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_4-class_bu-1.png" alt="Classification probabilities for beech, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for beech, based on 4-class model
+</p>
+</div>
+</div>
+<div id="spruce-1" class="section level5">
+<h5>Spruce</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_6-class_fi-1.png" alt="Classification probabilities for spruce, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for spruce, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_4-class_fi-1.png" alt="Classification probabilities for spruce, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for spruce, based on 4-class model
+</p>
+</div>
+</div>
+<div id="pine-1" class="section level5">
+<h5>Pine</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_6-class_ki-1.png" alt="Classification probabilities for pine, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for pine, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_4-class_ki-1.png" alt="Classification probabilities for pine, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for pine, based on 4-class model
+</p>
+</div>
+</div>
+<div id="oak-1" class="section level5">
+<h5>Oak</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_6-class_tei-1.png" alt="Classification probabilities for oak, based on 6-class model" width="672" />
+<p class="caption">
+Classification probabilities for oak, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_4-class_tei-1.png" alt="Classification probabilities for oak, based on 4-class model" width="672" />
+<p class="caption">
+Classification probabilities for oak, based on 4-class model
+</p>
+</div>
+</div>
+<div id="maximum-1" class="section level5">
+<h5>Maximum</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_6-class_max-1.png" alt="Maximum classification probabilitiy, based on 6-class model" width="672" />
+<p class="caption">
+Maximum classification probabilitiy, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_probability_4-class_max-1.png" alt="Maximum classification probability, based on 4-class model" width="672" />
+<p class="caption">
+Maximum classification probability, based on 4-class model
+</p>
+</div>
+</div>
+<div id="classification-1" class="section level5">
+<h5>Classification</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_prediction_6-class-1.png" alt="Tree species predition, based on 6-class model" width="672" />
+<p class="caption">
+Tree species predition, based on 6-class model
+</p>
+</div>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_solling_prediction_4-class-1.png" alt="Tree species predition, based on 4-class model" width="672" />
+<p class="caption">
+Tree species predition, based on 4-class model
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="probability-distribution" class="section level3">
+<h3>Probability distribution</h3>
+<p><strong>Overall</strong></p>
+<p>The average prediction certainty is higher with the 4-class model than with the 6-class model in the Solling area (0.78 vs. 0.74) and in the Harz area (0.82 vs. 0.74).</p>
+<p><strong>By Species</strong></p>
+<!-- Having a look at the correctly classified reference sites we can see that a reduced set of predicted tree species results in higher model certainties for all species.  -->
+<!-- ```{r init_reduced_species_boxplot} -->
+<!-- test.df.reduced.long<- test.df.reduced.6class %>% -->
+<!--   reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"), -->
+<!--                  variable.name = "species", -->
+<!--                  value.name = "probability") -->
+<!-- #insert missing tree species levels -->
+<!-- test.df.reduced.long$species <- factor(test.df.reduced.long$species, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI")) -->
+<!-- dat <- merge(test.df.reduced.long, test.df.long.6class %>% select(Row.names, species, prediction, probability), by=c("Row.names", "species"), all =  F) -->
+<!-- dat <- dat %>% rename(reduced.species = "probability.x", -->
+<!--                       all.species = "probability.y", -->
+<!--                       reduced.prediction = "prediction.x", -->
+<!--                       all.prediction = "prediction.y") -->
+<!-- dat <- dat %>% reshape2::melt(id.vars = c("Row.names","species", "reference", "all.prediction", "reduced.prediction", "result"), -->
+<!--                  variable.name = "model", -->
+<!--                  value.name = "probability") -->
+<!-- ``` -->
+<!-- ```{r plot_reduced_species_correct, fig.cap= "Model propabilities (4-class and 6-class) by species for correctly classified refrence sites"} -->
+<!-- # propabilities of predicted tree species  which were classified correct -->
+<!-- plot_ly(dat %>% filter(result=="right", reduced.prediction == species),x= ~reference, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+<!-- ``` -->
+<!-- ##### incorrectly classified refrence sites -->
+<!-- ```{r plot_reduced_species_incorrect1, fig.cap= "propabilities of predicted tree species  which were classified incorrect (e.g. predicted probability of beech which is in fact oak)"} -->
+<!-- # propabilities of predicted tree species  which were classified incorrect (e.g. predicted probability of beech which is in fact oak) -->
+<!-- plot_ly(dat %>% filter(result=="wrong", reduced.prediction == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+<!-- ``` -->
+<!-- Quite unsurprisingly the (false) probabilities of incorrectly classified forest stands rise with reduced number of species if we are considering all reference data, including Larch and Douglas fir. These stands are classified as one of the other four species and hence are incorrect by default. -->
+<!-- ```{r plot_reduced_species_incorrect2, fig.cap= "propabilities of reference tree species  which were classified incorrect (e.g. probability of oak which was predicted as beech)"} -->
+<!-- # propabilities of reference tree species  which were classified incorrect (e.g. probability of oak which was classified as beech) -->
+<!-- plot_ly(dat %>% filter(result=="wrong", reference == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+<!-- ``` -->
+<!-- Probabilities for the (true) reference species, which were classified incorrectly as another species increased slighty with reduced number of predicted species. This is mainly due to the fact that probabilities are split among four instead of six species. -->
+<div id="correct" class="section level4 tabset tabset-pills">
+<h4>correct</h4>
+<div id="class" class="section level5">
+<h5>6-class</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_hist_correct_6class-1.png" alt="Relative probability distributions for correctly classified forest stands by tree species using 6-class model" width="672" />
+<p class="caption">
+Relative probability distributions for correctly classified forest stands by tree species using 6-class model
+</p>
+</div>
+<p>It is obvious that the model is not good at predicting douglas fir, larch and pine. Forest stands of these species are classified correctly with a prediction probability which is much lower than these of beach spruce or oak.</p>
+</div>
+<div id="class-1" class="section level5">
+<h5>4-class</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_hist_correct_4class-1.png" alt="Relative probability distributions for correctly classified forest stands by tree species using 4-class model" width="672" />
+<p class="caption">
+Relative probability distributions for correctly classified forest stands by tree species using 4-class model
+</p>
+</div>
+<p>Training the model on just 4 classes results in better performances for all four species. But especially pine stands are predicted with higher certainties if we exclude douglas fir and larch.</p>
+</div>
+</div>
+<div id="incorrect" class="section level4 tabset tabset-pills">
+<h4>incorrect</h4>
+<div id="class-2" class="section level5">
+<h5>6-class</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_hist_incorrect_6class-1.png" alt="Relative probability distributions for incorrectly classified forest by tree species stands using the 6-class model" width="672" />
+<p class="caption">
+Relative probability distributions for incorrectly classified forest by tree species stands using the 6-class model
+</p>
+</div>
+<p>Most incorrectly classified forest stands are predicted with a probability of less than 0.7. This is especially true for pine, larch and oak.</p>
+</div>
+<div id="class-3" class="section level5">
+<h5>4-class</h5>
+<div class="figure" style="text-align: center">
+<img src="figure/class_reduction.Rmd/plot_hist_incorrect_4class-1.png" alt="Relative probability distributions for incorrectly classified forest stands by tree species using the 4-class model" width="672" />
+<p class="caption">
+Relative probability distributions for incorrectly classified forest stands by tree species using the 4-class model
+</p>
+</div>
+<p>Prediction probabilities of incorrectly classified forest stands increase slightly when using the 4-class model. This is mainly due to the fact that probabilities (always summing up to 1) are distributed among four instead of six classes.</p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span> Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre><code>R version 4.0.2 (2020-06-22)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 10 x64 (build 18362)
+
+Matrix products: default
+
+locale:
+[1] LC_COLLATE=German_Germany.1252  LC_CTYPE=German_Germany.1252   
+[3] LC_MONETARY=German_Germany.1252 LC_NUMERIC=C                   
+[5] LC_TIME=German_Germany.1252    
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] rasterVis_0.48      latticeExtra_0.6-29 ranger_0.12.1      
+ [4] caret_6.0-86        lattice_0.20-41     recipes_0.1.13     
+ [7] dplyr_1.0.0         here_0.1            plotly_4.9.2.1     
+[10] ggplot2_3.3.2       readr_1.3.1         rgdal_1.5-12       
+[13] kableExtra_1.1.0    viridis_0.5.1       viridisLite_0.3.0  
+[16] raster_3.3-13       sp_1.4-2            workflowr_1.6.2    
+
+loaded via a namespace (and not attached):
+ [1] nlme_3.1-148         fs_1.4.2             lubridate_1.7.9     
+ [4] webshot_0.5.2        RColorBrewer_1.1-2   httr_1.4.2          
+ [7] rprojroot_1.3-2      tools_4.0.2          backports_1.1.7     
+[10] R6_2.4.1             rpart_4.1-15         lazyeval_0.2.2      
+[13] colorspace_1.4-1     nnet_7.3-14          withr_2.2.0         
+[16] tidyselect_1.1.0     gridExtra_2.3        compiler_4.0.2      
+[19] git2r_0.27.1         rvest_0.3.6          xml2_1.3.2          
+[22] labeling_0.3         scales_1.1.1         hexbin_1.28.1       
+[25] randomForest_4.6-14  stringr_1.4.0        digest_0.6.25       
+[28] rmarkdown_2.3        jpeg_0.1-8.1         pkgconfig_2.0.3     
+[31] htmltools_0.5.0      highr_0.8            htmlwidgets_1.5.1   
+[34] rlang_0.4.7          rstudioapi_0.11      farver_2.0.3        
+[37] generics_0.0.2       zoo_1.8-8            jsonlite_1.7.0      
+[40] ModelMetrics_1.2.2.2 magrittr_1.5         Matrix_1.2-18       
+[43] Rcpp_1.0.5           munsell_0.5.0        lifecycle_0.2.0     
+[46] stringi_1.4.6        whisker_0.4          pROC_1.16.2         
+[49] yaml_2.2.1           MASS_7.3-51.6        plyr_1.8.6          
+[52] grid_4.0.2           parallel_4.0.2       promises_1.1.1      
+[55] crayon_1.3.4         splines_4.0.2        hms_0.5.3           
+[58] knitr_1.29           pillar_1.4.6         reshape2_1.4.4      
+[61] codetools_0.2-16     stats4_4.0.2         glue_1.4.1          
+[64] evaluate_0.14        data.table_1.12.8    vctrs_0.3.2         
+[67] png_0.1-7            httpuv_1.5.4         foreach_1.5.0       
+[70] gtable_0.3.0         purrr_0.3.4          tidyr_1.1.0         
+[73] xfun_0.15            gower_0.2.2          prodlim_2019.11.13  
+[76] e1071_1.7-3          later_1.1.0.1        class_7.3-17        
+[79] survival_3.2-3       timeDate_3043.102    tibble_3.0.3        
+[82] iterators_1.0.12     lava_1.6.7           ellipsis_0.3.1      
+[85] ipred_0.9-9         </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
