@@ -1,0 +1,825 @@
+---
+# title: "class_reduction"
+author: "wiesehahn"
+date: "2020-08-31"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(# fig.width=12, fig.height=8, 
+  echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r setup, include=FALSE}
+library(raster)
+library(viridis)
+library(kableExtra)
+library(rgdal)
+library(readr)
+library(plotly)
+library(here)
+library(recipes)
+library(caret)
+library(ranger)
+library(ggplot2)
+library(rasterVis)
+
+```
+
+
+```{r load_reference}
+# load reference data
+
+filename = here("data/reference/train_test/train_test.rds")
+
+ref <- readRDS(filename)
+
+# split in train and test data
+index <- createDataPartition(y = ref$Baumart, p = .7, list = FALSE)
+training <- ref[index, ]
+testing <- ref[-index, ]
+```
+
+# Class reduction
+
+
+```{r rf_init}
+# for reproducibility
+set.seed(42)
+
+# random forest parameters
+ntree <- 500
+nodesize <- 1
+splitvariables <- 2
+
+```
+
+```{r predict_vaidation_6-class}
+
+
+predictors.all <- names(training %>% select(- contains("_VI"), -Baumart))
+f.all <- as.formula(paste("Baumart", paste(predictors.all, collapse=" + "), sep=" ~ "))
+
+# ranger RF model
+ranger_6class <- ranger(
+    formula   = f.all, 
+    data      = training, 
+    min.node.size = nodesize,
+    mtry      = splitvariables,
+    num.trees = ntree,
+    probability = TRUE)
+
+# predict testset probability
+pred <- predict(ranger_6class, testing)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing$Baumart)
+test.df <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df <- test.df %>% 
+  rename(reference = "testing$Baumart") %>%
+  mutate(prediction = colnames(test.df[2:7])[max.col(test.df[2:7], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+
+
+test.df.long.6class<- test.df %>%
+  reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+```
+
+## Background
+
+As we saw in the part about [Model Tuning](model_tuning.html) there is no significant impact by haperparameter settings or the predictor variables. However, the performance varies between species. As we can see in the following table douglas fir, pine and larch have much lower prediction accuracies than beech or spruce. This might be related to a lower number of reference data but it might also come from correlated reflectancies.
+
+```{r accuracy_table_6class}
+test.df$prediction <- factor(test.df$prediction, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+cm<- confusionMatrix(data = test.df$prediction, reference = test.df$reference)
+cm.class <- as.data.frame(cm$byClass)
+
+kable(cm.class %>% select(`Balanced Accuracy`)) %>% kable_styling(full_width = F)
+```
+
+> So what happens to prediction accuracies if the number of predicted tree species is reduced?  
+
+To test this a model was trained on just four species (beech, spruce, pine, oak) excluding larch and douglas fir, since the 6-class model performs bad for them and additionally they have a low abundance.
+
+```{r model_ranger_4-class}
+
+
+predictors <- names(training %>% select(- contains("_VI"), -Baumart))
+f <- as.formula(paste("Baumart", paste(predictors, collapse=" + "), sep=" ~ "))
+
+# ranger RF model
+ranger_4class <- ranger(
+    formula   = f, 
+    data      = training %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI")), 
+    min.node.size = nodesize,
+    mtry      = splitvariables,
+    num.trees = ntree,
+    probability = TRUE)
+
+```
+
+### Accuracy
+
+The effect of less prediction classes in the RF model can be seen below. Because the model is trained on 4 classes excluding larch and douglas fir, none of the reference pixels is classified as one of those. Including all 6 tree species in the validation dataset we can see, that Douglas fir is mainly classified as Spruce, while Larch is classified as either Beech, Pine or Oak!
+
+```{r rf_reduced_6-class-accuracy}
+# predict testset probability
+pred <- predict(ranger_4class, testing)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing$Baumart)
+test.df.reduced <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df.reduced <- test.df.reduced %>% 
+  rename(reference = "testing$Baumart") %>%
+  mutate(prediction = colnames(test.df.reduced[2:5])[max.col(test.df.reduced[2:5], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+
+test.df.reduced.6class <- test.df.reduced
+```
+
+*Error Matrix*
+```{r reduced_species_6-class_matrix}
+#insert missing tree species levels
+test.df.reduced$prediction <- factor(test.df.reduced$prediction, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+
+cm.reduced<- confusionMatrix(data = test.df.reduced$prediction, reference = test.df.reduced$reference)
+cm.reduced.df <- as.data.frame.matrix(cm.reduced$table)
+
+
+cm.reduced.df %>%
+  mutate_all(~ifelse(. > 400,
+                  cell_spec(., "html", color = "black", bold = T),
+                  ifelse(. > 0,
+                         cell_spec(., color = "white", bold = T, background = spec_color(., option = "A", direction= -1, scale_from = c(0,nrow(testing)/20))),
+                         cell_spec(., "html", color = "grey")
+                         )
+                  )
+             ) %>%
+  mutate(Baumart = cell_spec(c("BU","DGL","FI","KI", "LAE","TEI"), "html",bold = T)) %>%
+  select(Baumart, everything(.)) %>%
+  
+  kable("html", escape = F, rownames = TRUE, align=c('r', rep('c', 6))) %>%
+  add_header_above(c("", "Reference" = 6)) %>%
+  kable_styling("hover", full_width = F)
+```
+
+
+*6-class Accuracy* (larch and douglas fir stands are counted as wrong predictions)
+```{r reduced_species_6-class_validation_accuracy}
+cm.reduced.df <- as.data.frame(t(cm.reduced$overall[1:4]))
+
+kable(cm.reduced.df) %>% kable_styling(full_width = F)
+```
+
+
+```{r rf_reduced_4-class-accuracy}
+# predict testset probability
+testing_reduced <- testing %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI"))
+
+pred <- predict(ranger_4class, testing_reduced)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing_reduced$Baumart)
+test.df.reduced <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df.reduced <- test.df.reduced %>% 
+  rename(reference = "testing_reduced$Baumart") %>%
+  mutate(prediction = colnames(test.df.reduced[2:5])[max.col(test.df.reduced[2:5], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+```
+
+```{r reduced_species_4-class_matrix}
+#insert missing tree species levels
+test.df.reduced$prediction <- factor(test.df.reduced$prediction, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI"))
+
+
+cm.reduced<- confusionMatrix(data = test.df.reduced$prediction, reference = test.df.reduced$reference)
+```
+
+*4-class Accuracy* (stands of larch and douglas fir are not considered)
+```{r reduced_species_4-class_validation_accuracy}
+cm.reduced.df <- as.data.frame(t(cm.reduced$overall[1:4]))
+
+kable(cm.reduced.df) %>% kable_styling(full_width = F)
+```
+
+*4-class Accuracy by species*
+```{r}
+cm.reduced.class <- as.data.frame(cm.reduced$byClass)
+
+kable(cm.reduced.class %>% select(`Balanced Accuracy`)) %>% kable_styling(full_width = F)
+```
+
+Compared to the 6-class model accuracies for all four species increased. Especially the accuracy for pine increased a lot.
+
+
+### Sample Predictions
+
+The classification probabilities for each class and the final predictions were calculated for study sites to compare the 6-class and the 4-class model visually.
+
+```{r load_aoi}
+# load data
+ref.sol <- readOGR(dsn= here("data/reference/Solling"), layer = "Training_Solling_2", stringsAsFactors = T, verbose=F)
+ref.sol@data$site = as.factor("Solling")
+ref.sol@data$BA <- plyr::revalue(ref.sol@data$BA, c("112"="Eiche", 
+                    "211"="Buche",
+                    "511"="Fichte",
+                    "611"="Douglasie",
+                    "711"="Kiefer",
+                    "811"="Laerche"))
+ref.sol@data$ID = as.numeric(as.character(ref.sol@data$ID))
+
+ref.har <- readOGR(dsn=here("data/reference/Harz"), layer = "Training_Harz_2", stringsAsFactors = T, verbose=F)
+ref.har@data$site = as.factor("Harz")
+ref.har@data$BA <- plyr::revalue(ref.har@data$BA, c("112"="Eiche", 
+                    "211"="Buche",
+                    "511"="Fichte",
+                    "611"="Douglasie",
+                    "711"="Kiefer",
+                    "811"="Laerche"))
+
+ref.hei <- readOGR(dsn=here("data/reference/Heide"), layer = "Training_Heide_2", stringsAsFactors = T, verbose=F)
+ref.hei@data$site = as.factor("Heide")
+ref.hei@data$BA <- plyr::revalue(ref.hei@data$BA, c("112"="Eiche", 
+                    "211"="Buche",
+                    "511"="Fichte",
+                    "611"="Douglasie",
+                    "711"="Kiefer",
+                    "811"="Laerche"))
+
+ref.all <- rbind(ref.sol,ref.har,ref.hei)
+
+
+# transform
+ref <- spTransform(ref.all, CRS("+init=epsg:4326"))
+
+
+# set same relative extent
+ext.sol <- extent(ref.sol)
+ext.dist <- min(ext.sol@xmax - ext.sol@xmin, ext.sol@ymax - ext.sol@ymin)
+
+ext.sol@xmax <- ext.sol@xmin + ext.dist
+ext.sol@ymax <- ext.sol@ymin + ext.dist
+
+ext.har <- extent(ref.har)
+ext.har@xmax <- ext.har@xmin + ext.dist
+ext.har@ymax <- ext.har@ymin + ext.dist
+
+ext.hei <- extent(ref.hei)
+ext.hei@xmax <- ext.hei@xmin + ext.dist
+ext.hei@ymax <- ext.hei@ymin + ext.dist
+```
+
+```{r init_raster_prediction_6class}
+
+f <- "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi_masked.tif"
+
+if (!file.exists(f)){
+  img.class <- stack("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu.tif")
+  
+  img.unmasked <- stack("G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi.tif")
+  
+  img.class <- crop(img.class, extent(img.unmasked))
+  
+  img <- mask(img.unmasked, mask= img.class, filename= "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi_masked.tif")
+} else{
+  
+ img <- stack(f) 
+}
+
+
+
+img <- setNames(img, predictors)
+
+rf_all <- randomForest::randomForest(
+  formula   = Baumart ~ ., 
+    data      = training %>% select(- contains("_VI")), 
+    nodesize = nodesize,
+    mtry      = splitvariables,
+    ntree = ntree,
+  probability = T)
+
+```
+
+```{r create_6class_sol}
+
+path.img <- here("data/sen2/6class_sol.tif")
+
+if (!file.exists(path.img)){
+
+sol.6class <- raster::predict(img, rf_all, ext= ext.sol, progress="text")
+
+writeRaster(sol.6class, path.img, format="GTiff")
+  
+} else {
+ sol.6class <- raster(path.img) 
+}
+
+```
+
+```{r create_6class_har}
+
+path.img <- here("data/sen2/6class_har.tif")
+
+if (!file.exists(path.img)){
+
+har.6class <- raster::predict(img, rf_all, ext= ext.har, progress="text")
+
+writeRaster(har.6class, path.img, format="GTiff")
+  
+} else {
+ har.6class <- raster(path.img) 
+}
+
+```
+
+```{r init_raster_prediction_4class}
+
+train <- training %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI")) %>% select(- contains("_VI"))
+train$Baumart <- droplevels(train$Baumart)
+
+rf_reduced <- randomForest::randomForest(
+    formula   = Baumart ~ ., 
+    data      = train, 
+    min.node.size = nodesize,
+    mtry      = splitvariables,
+    num.trees = ntree,
+    probability = TRUE)
+```
+
+```{r create_4class_sol}
+
+path.img <- here("data/sen2/4class_sol.tif")
+
+if (!file.exists(path.img)){
+
+sol.4class <- raster::predict(img, rf_reduced, ext= ext.sol, progress="text")
+
+writeRaster(sol.4class, path.img, format="GTiff")
+  
+} else {
+ sol.4class <- raster(path.img) 
+}
+
+```
+
+```{r create_4class_har}
+
+path.img <- here("data/sen2/4class_har.tif")
+
+if (!file.exists(path.img)){
+
+har.4class <- raster::predict(img, rf_reduced, ext= ext.har, progress="text")
+
+writeRaster(har.4class, path.img, format="GTiff")
+  
+} else {
+ har.4class <- raster(path.img) 
+}
+
+```
+
+
+#### Harz {.tabset .tabset-pills} 
+
+Tree species probabilities and final classification in the Harz area.
+
+```{r calc_har_probabilities_6-class}
+
+path.img <- here("data/sen2/6class_har_probabilities.tif")
+
+if (!file.exists(path.img)){
+ext = ext.har
+
+    rf.votes.1 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=1)
+    rf.votes.2 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=2)
+    rf.votes.3 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=3)
+    rf.votes.4 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=4)
+    rf.votes.5 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=5)
+    rf.votes.6 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=6)
+gc()
+    rf.votes.har <- stack(list(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4, rf.votes.5,rf.votes.6))
+    rf.votes.map <- calc(rf.votes.har, max, na.rm=T)
+    
+    rf.votes.har.6class <- stack(list(rf.votes.har, rf.votes.map))
+
+    rm(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4, rf.votes.5, rf.votes.6, rf.votes.har) 
+    gc()
+
+    writeRaster(rf.votes.har.6class, path.img, format="GTiff")
+  
+} else {
+  
+ rf.votes.har.6class <- stack(path.img) 
+}
+
+
+```
+
+```{r calc_har_probabilities_4-class}
+
+path.img <- here("data/sen2/4class_har_probabilities.tif")
+
+if (!file.exists(path.img)){
+ext = ext.har
+
+    rf.votes.1 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=1)
+    rf.votes.2 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=2)
+    rf.votes.3 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=3)
+    rf.votes.4 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=4)
+
+    rf.votes.har <- stack(list(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4))
+    
+    rf.votes.map <- calc(rf.votes.har, max, na.rm=T)
+    rf.votes.har.4class <- stack(list(rf.votes.har, rf.votes.map))
+
+    rm(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4, rf.votes.har) 
+    gc()
+    
+    writeRaster(rf.votes.har.4class, path.img, format="GTiff")
+  
+} else {
+  
+ rf.votes.har.4class <- stack(path.img) 
+}
+
+
+```
+
+
+##### Beech
+
+```{r plot_harz_probability_6-class_bu, fig.cap="Classification probabilities for beech, based on 6-class model"}
+
+levelplot(rf.votes.har.6class[[1]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_harz_probability_4-class_bu, fig.cap="Classification probabilities for beech, based on 4-class model"}
+
+levelplot(rf.votes.har.4class[[1]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Spruce
+
+```{r plot_harz_probability_6-class_fi, fig.cap="Classification probabilities for spruce, based on 6-class model"}
+
+levelplot(rf.votes.har.6class[[3]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_harz_probability_4-class_fi, fig.cap="Classification probabilities for spruce, based on 4-class model"}
+
+levelplot(rf.votes.har.4class[[2]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Pine
+
+```{r plot_harz_probability_6-class_ki, fig.cap="Classification probabilities for pine, based on 6-class model"}
+
+levelplot(rf.votes.har.6class[[4]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_harz_probability_4-class_ki, fig.cap="Classification probabilities for pine, based on 4-class model"}
+
+levelplot(rf.votes.har.4class[[3]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Oak
+
+```{r plot_harz_probability_6-class_tei, fig.cap="Classification probabilities for oak, based on 6-class model"}
+
+levelplot(rf.votes.har.6class[[6]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_harz_probability_4-class_tei, fig.cap="Classification probabilities for oak, based on 4-class model"}
+
+levelplot(rf.votes.har.4class[[4]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Maximum
+
+```{r plot_harz_probability_6-class_max, fig.cap="Maximum classification probabilitiy, based on 6-class model"}
+
+levelplot(rf.votes.har.6class[[7]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_harz_probability_4-class_max, fig.cap="Maximum classification probability, based on 4-class model"}
+
+levelplot(rf.votes.har.4class[[5]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Classification
+
+```{r plot_harz_prediction_6-class, fig.cap="Tree species predition, based on 6-class model"}
+
+levelplot(har.6class,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#ffffff", "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+```{r plot_harz_prediction_4-class, fig.cap="Tree species predition, based on 4-class model"}
+levelplot(har.4class,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#ffffff", "#bf7013","#4066aa","#94a6b0", "#fecc00"),maxpixels = 1e6)
+```
+
+
+
+
+
+#### Solling {.tabset .tabset-pills} 
+
+Tree species probabilities and final classification in the Solling area.
+
+```{r calc_sol_probabilities_6-class}
+
+path.img <- here("data/sen2/6class_sol_probabilities.tif")
+
+if (!file.exists(path.img)){
+ext = ext.sol
+
+    rf.votes.1 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=1)
+    rf.votes.2 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=2)
+    rf.votes.3 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=3)
+    rf.votes.4 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=4)
+    rf.votes.5 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=5)
+    rf.votes.6 <-raster::predict(img, rf_all, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=6)
+gc()
+    rf.votes.sol <- stack(list(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4, rf.votes.5,rf.votes.6))
+    rf.votes.map <- calc(rf.votes.sol, max, na.rm=T)
+    
+    rf.votes.sol.6class <- stack(list(rf.votes.sol, rf.votes.map))
+
+
+    writeRaster(rf.votes.sol.6class, path.img, format="GTiff")
+  
+} else {
+  
+ rf.votes.sol.6class <- stack(path.img) 
+}
+
+
+```
+
+```{r calc_sol_probabilities_4-class}
+
+path.img <- here("data/sen2/4class_sol_probabilities.tif")
+
+if (!file.exists(path.img)){
+ext = ext.sol
+gc()
+    rf.votes.1 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=1)
+    rf.votes.2 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=2)
+    rf.votes.3 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=3)
+    rf.votes.4 <-raster::predict(img, rf_reduced, ext= ext, progress="text", na.rm=TRUE, inf.rm=TRUE, type="vote", index=4)
+
+    rf.votes.sol <- stack(list(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4))
+    
+    rf.votes.map <- calc(rf.votes.sol, max, na.rm=T)
+    rf.votes.sol.4class <- stack(list(rf.votes.sol, rf.votes.map))
+
+    rm(rf.votes.1, rf.votes.2, rf.votes.3, rf.votes.4, rf.votes.sol) 
+    gc()
+    
+    writeRaster(rf.votes.sol.4class, path.img, format="GTiff")
+  
+} else {
+  
+ rf.votes.sol.4class <- stack(path.img) 
+}
+
+
+```
+
+##### Beech
+
+```{r plot_solling_probability_6-class_bu, fig.cap="Classification probabilities for beech, based on 6-class model"}
+
+levelplot(rf.votes.sol.6class[[1]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_solling_probability_4-class_bu, fig.cap="Classification probabilities for beech, based on 4-class model"}
+
+levelplot(rf.votes.sol.4class[[1]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Spruce
+
+```{r plot_solling_probability_6-class_fi, fig.cap="Classification probabilities for spruce, based on 6-class model"}
+
+levelplot(rf.votes.sol.6class[[3]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_solling_probability_4-class_fi, fig.cap="Classification probabilities for spruce, based on 4-class model"}
+
+levelplot(rf.votes.sol.4class[[2]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Pine
+
+```{r plot_solling_probability_6-class_ki, fig.cap="Classification probabilities for pine, based on 6-class model"}
+
+levelplot(rf.votes.sol.6class[[4]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_solling_probability_4-class_ki, fig.cap="Classification probabilities for pine, based on 4-class model"}
+
+levelplot(rf.votes.sol.4class[[3]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Oak
+
+```{r plot_solling_probability_6-class_tei, fig.cap="Classification probabilities for oak, based on 6-class model"}
+
+levelplot(rf.votes.sol.6class[[6]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_solling_probability_4-class_tei, fig.cap="Classification probabilities for oak, based on 4-class model"}
+
+levelplot(rf.votes.sol.4class[[4]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Maximum
+
+```{r plot_solling_probability_6-class_max, fig.cap="Maximum classification probabilitiy, based on 6-class model"}
+
+levelplot(rf.votes.sol.6class[[7]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+```{r plot_solling_probability_4-class_max, fig.cap="Maximum classification probability, based on 4-class model"}
+
+levelplot(rf.votes.sol.4class[[5]], margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Classification
+
+```{r plot_solling_prediction_6-class, fig.cap="Tree species predition, based on 6-class model"}
+
+levelplot(sol.6class,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#ffffff", "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+```{r plot_solling_prediction_4-class, fig.cap="Tree species predition, based on 4-class model"}
+levelplot(sol.4class,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#ffffff", "#bf7013","#4066aa","#94a6b0", "#fecc00"),maxpixels = 1e6)
+```
+
+### Probability distribution
+
+```{r predict_vaidation_4-class}
+
+# predict testset probability
+pred <- predict(ranger_4class, testing)
+pred.df <- as.data.frame(pred$predictions)
+ref.df <-  as.data.frame(testing$Baumart)
+test.df <- merge(pred.df, ref.df, by=0, all=TRUE)
+
+test.df <- test.df %>% 
+  rename(reference = "testing$Baumart") %>%
+  mutate(prediction = colnames(test.df[2:5])[max.col(test.df[2:5], ties.method = "first")],
+         result = if_else(reference != prediction,"wrong", "right"))
+
+
+test.df.long.4class<- test.df %>%
+  reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+
+```
+
+
+**Overall**
+
+The average prediction certainty is higher with the 4-class model than with the 6-class model in the Solling area (`r round(cellStats(rf.votes.sol.4class[[5]], 'mean'), digits = 2)` vs. `r round(cellStats(rf.votes.sol.6class[[7]], 'mean'), digits = 2)`) and in the Harz area (`r round(cellStats(rf.votes.har.4class[[5]], 'mean'), digits = 2)` vs. `r round(cellStats(rf.votes.har.6class[[7]], 'mean'), digits = 2)`).
+
+**By Species**
+
+<!-- Having a look at the correctly classified reference sites we can see that a reduced set of predicted tree species results in higher model certainties for all species.  -->
+
+<!-- ```{r init_reduced_species_boxplot} -->
+
+<!-- test.df.reduced.long<- test.df.reduced.6class %>% -->
+<!--   reshape2::melt(id.vars = c("Row.names", "reference", "prediction", "result"), -->
+<!--                  variable.name = "species", -->
+<!--                  value.name = "probability") -->
+
+<!-- #insert missing tree species levels -->
+<!-- test.df.reduced.long$species <- factor(test.df.reduced.long$species, levels = c("BU", "DGL", "FI", "KI","LAE", "TEI")) -->
+
+<!-- dat <- merge(test.df.reduced.long, test.df.long.6class %>% select(Row.names, species, prediction, probability), by=c("Row.names", "species"), all =  F) -->
+
+<!-- dat <- dat %>% rename(reduced.species = "probability.x", -->
+<!--                       all.species = "probability.y", -->
+<!--                       reduced.prediction = "prediction.x", -->
+<!--                       all.prediction = "prediction.y") -->
+
+<!-- dat <- dat %>% reshape2::melt(id.vars = c("Row.names","species", "reference", "all.prediction", "reduced.prediction", "result"), -->
+<!--                  variable.name = "model", -->
+<!--                  value.name = "probability") -->
+<!-- ``` -->
+
+
+<!-- ```{r plot_reduced_species_correct, fig.cap= "Model propabilities (4-class and 6-class) by species for correctly classified refrence sites"} -->
+
+<!-- # propabilities of predicted tree species  which were classified correct -->
+<!-- plot_ly(dat %>% filter(result=="right", reduced.prediction == species),x= ~reference, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+
+<!-- ``` -->
+
+<!-- ##### incorrectly classified refrence sites -->
+
+<!-- ```{r plot_reduced_species_incorrect1, fig.cap= "propabilities of predicted tree species  which were classified incorrect (e.g. predicted probability of beech which is in fact oak)"} -->
+
+<!-- # propabilities of predicted tree species  which were classified incorrect (e.g. predicted probability of beech which is in fact oak) -->
+<!-- plot_ly(dat %>% filter(result=="wrong", reduced.prediction == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+
+<!-- ``` -->
+
+<!-- Quite unsurprisingly the (false) probabilities of incorrectly classified forest stands rise with reduced number of species if we are considering all reference data, including Larch and Douglas fir. These stands are classified as one of the other four species and hence are incorrect by default. -->
+
+<!-- ```{r plot_reduced_species_incorrect2, fig.cap= "propabilities of reference tree species  which were classified incorrect (e.g. probability of oak which was predicted as beech)"} -->
+
+<!-- # propabilities of reference tree species  which were classified incorrect (e.g. probability of oak which was classified as beech) -->
+<!-- plot_ly(dat %>% filter(result=="wrong", reference == species),x= ~species, y = ~probability, color = ~model, type = "box")%>% layout(boxmode = "group") -->
+<!-- ``` -->
+
+<!-- Probabilities for the (true) reference species, which were classified incorrectly as another species increased slighty with reduced number of predicted species. This is mainly due to the fact that probabilities are split among four instead of six species. -->
+
+
+#### correct {.tabset .tabset-pills} 
+
+##### 6-class
+
+```{r plot_hist_correct_6class, fig.cap="Relative probability distributions for correctly classified forest stands by tree species using 6-class model"}
+
+ggplot(test.df.long.6class %>% filter(prediction == reference, prediction == species),aes(x=probability, fill = reference))+
+  geom_histogram(aes(y=0.05* ..density..),
+                 alpha=1,position="dodge",binwidth=0.05)+
+  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position = "none") +
+  scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"))
+
+```
+
+It is obvious that the model is not good at predicting douglas fir, larch and pine. Forest stands of these species are classified correctly with a prediction probability which is much lower than these of beach spruce or oak. 
+
+##### 4-class
+
+```{r plot_hist_correct_4class, fig.cap="Relative probability distributions for correctly classified forest stands by tree species using 4-class model"}
+
+ggplot(test.df.long.4class %>% filter(prediction == reference, prediction == species),aes(x=probability, fill = reference))+
+  geom_histogram(aes(y=0.05* ..density..),
+                 alpha=1,position="dodge",binwidth=0.05)+
+  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position = "none") +
+  scale_fill_manual(values=c("#bf7013","#4066aa","#94a6b0","#fecc00"))
+
+```
+
+Training the model on just 4 classes results in better performances for all four species. But especially pine stands are predicted with higher certainties if we exclude douglas fir and larch.
+
+#### incorrect {.tabset .tabset-pills} 
+
+##### 6-class
+
+```{r plot_hist_incorrect_6class, fig.cap="Relative probability distributions for incorrectly classified forest by tree species stands using the 6-class model"}
+
+ggplot(test.df.long.6class %>% filter(prediction != reference, prediction == species),aes(x=probability, fill = prediction))+
+  geom_histogram(aes(y=0.05* ..density..),
+                 alpha=1,position="dodge",binwidth=0.1)+
+  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position="bottom") +
+  scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"))
+
+```
+
+Most incorrectly classified forest stands are predicted with a probability of less than 0.7. This is especially true for pine, larch and oak.
+
+##### 4-class
+
+```{r plot_hist_incorrect_4class, fig.cap="Relative probability distributions for incorrectly classified forest stands by tree species using the 4-class model"}
+
+ggplot(test.df.long.4class %>% filter(prediction != reference, prediction == species, reference %in% c("BU", "FI", "KI", "TEI")),aes(x=probability, fill = prediction))+
+  geom_histogram(aes(y=0.05* ..density..),
+                 alpha=1,position="dodge",binwidth=0.1)+
+  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position="bottom") +
+  scale_fill_manual(values=c("#bf7013","#4066aa","#94a6b0", "#fecc00"))
+
+```
+
+Prediction probabilities  of incorrectly classified forest stands increase slightly when using the 4-class model. This is mainly due to the fact that probabilities (always summing up to 1) are distributed among four instead of six classes.

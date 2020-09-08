@@ -1,5 +1,5 @@
 ---
-title: "Mapping tree species"
+# title: "Mapping tree species"
 site: workflowr::wflow_site
 output:
   workflowr::wflow_html:
@@ -8,12 +8,14 @@ editor_options:
   chunk_output_type: console
 ---
 
+# Mapping tree species
 
+## - [Overview](overview.html)
 
-- [Mapping evaluation](evaluation.html)
+## - [Reference Data](reference_data.html)
 
-- [Classification](classification.html)
+## - [Model Tuning](model_tuning.html)
 
-- [Probability](probability.html)
+## - [Class Reduction](class_reduction.html)
 
 

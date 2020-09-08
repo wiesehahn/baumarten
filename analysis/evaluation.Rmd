@@ -1,5 +1,5 @@
 ---
-title: "evaluation"
+# title: "evaluation"
 author: "wiesehahn"
 date: "2020-07-23"
 output: workflowr::wflow_html
@@ -115,14 +115,14 @@ ext.hei@ymax <- ext.hei@ymin + ext.dist
 
 
 # set color palette for leaflet
-pal <- colorFactor("Dark2", ref@data$BA)
+pal <- colorFactor(c("#fecc00", "#bf7013","#4066aa","#a5027c", "#94a6b0", "#e20030"), ref@data$BA)
 
 # set color palette for plotly 
-pal.ref <- c(brewer.pal(n = 6, name = "Dark2")) %>%
+pal.ref <- c("#fecc00", "#bf7013","#4066aa","#a5027c", "#94a6b0", "#e20030") %>%
    setNames(levels(ref@data$BA))
 
 # palette  in the order of reference data levels
-pal.class <- c("#D95F02", "#E7298A", "#7570B3", "#66A61E", "#E6AB02", "#1B9E77") 
+pal.class <- c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00") 
 
 ```
 
@@ -187,6 +187,7 @@ ref@data %>% dplyr::group_by(BA, site) %>% dplyr::summarise(n=n()) %>%
 -----------------
 
 
+<!-- 
 ## Classification
 
 ```{r plot_class_init}
@@ -211,15 +212,9 @@ plot(img.class, col =pal.class, ext=ext.har, axes=FALSE, box=FALSE)
 ```{r plot_class_hei, fig.cap= "Tree species classification result for Heide"}
 plot(img.class, col =pal.class, ext=ext.hei, axes=FALSE, box=FALSE)
 ```
-
+ -->
 
 -----------------
-
-
-## Probability
-
-The Random Forest algorithm simply counts the fraction of trees in a forest that vote for a certain class to generate the predicted class. This class probability can be generated separately and provides insights in classification certainty.
-
 ```{r plot_prob_init}
 library(rasterVis)
 
@@ -237,6 +232,14 @@ img.prob.har <- crop(img.prob, ext.har)
 img.prob.hei <- crop(img.prob, ext.hei)
 
 ```
+
+
+<!-- 
+## Probability
+
+The Random Forest algorithm simply counts the fraction of trees in a forest that vote for a certain class to generate the predicted class. This class probability can be generated separately and provides insights in classification certainty.
+
+
 
 ### Overview
 ```{r plot_prob_all, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for the entire study region"}
@@ -260,7 +263,7 @@ levelplot(img.prob.har,  margin = list(axis = TRUE, scales=list(x= c(60,80), y =
 ```{r plot_prob_hei, fig.cap= "Pixelwise classification probability (and average by latitude and longitiude) for Heide"}
 levelplot(img.prob.hei,  margin = list(axis = TRUE, scales=list(x= c(60,80), y = c(60,80))), scales=list(draw=FALSE), maxpixels = 1e6)
 ```
-
+ -->
 
 ### Reference Probability
 
@@ -426,7 +429,11 @@ cm.df %>%
 
 **Respective Accuracy**
 ```{r print_ref_acc}
-print(cm$overall[1:2])
+
+cm.df <- as.data.frame(t(cm$overall[1:2]))
+
+kable(cm.df) %>% kable_styling(full_width = F)
+
 ```
 
 

@@ -1,0 +1,104 @@
+---
+# title: "overview"
+author: "wiesehahn"
+date: "2020-09-08"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+# Overview
+
+## Random Forest evaluation
+
+(classification steps and **improvement possibilities**)
+
+### Input Data
+- Choice of satellite imagery (**date**, quality)
+- Preprocessing steps (atmospheric, topographic, ... correction)
+- Image **masking** (clouds, cloud shadows, nodata)
+
+### Reference Data
+- Choice of **reference data** (distribution)
+- Label reference data
+- Extraction of input data for reference areas
+- Splitting in train and test data sets
+
+### Build Classification Model
+- Choice of **classification features**
+- Choice of model hyperparameters
+
+### Apply Classification Model
+- Input data classification
+- Class probability calculation
+
+### Postprocessing
+- Apply **filter** (Minimal Mapping Unit, Focal filter)
+- **Integration of class probabilities**
+
+### Accuracy Assessment
+- Calculate accuracy metrics from validation data
+
+
+## Misclassifications
+
+### Masking
+
+#### Tracks, Ways, ect. {.tabset .tabset-pills} 
+
+Forest tracks, ways and official streets cut through the forest. Along these lines the spectral reflectances are heavily influenced by the surface material. Hence, the classification certainty is much lower along these features and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image in the Solling area, which was used for tree species predictions"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%", fig.cap= "Classification probability in the Solling area (of tree species with highest probability per pixel)"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_probability_osm.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%", fig.cap= "Tree species classification result in the Solling area"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/sol_species.jpg")
+```
+
+#### Unstocked forest {.tabset .tabset-pills} 
+
+In many areas the forest stocking changed in recent years due to drought, wind, bark beetle and other stressors. In these areas where healthy tree cover has been lost (and in these areas where it has never been) the reflectances are totally different from reflectances in healthy forest conditions. Hence, the classification certainty is much lower in these areas and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image in the Harz area, which was used for tree species predictions"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%", fig.cap= "Classification probability in the Harz area (of tree species with highest probability per pixel)"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_probability.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%", fig.cap= "Tree species classification result in the Harz area"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/har_species.jpg")
+```
+
+#### Atmospheric disturbances {.tabset .tabset-pills}
+
+Atmospheric conditions, namely haze, clouds, contrails and other aerosols, have a strong influence on the reflectance values. In areas where they are not correctly masked or corrected the classification certainty is much lower and tree species might be classified wrong.
+
+##### Sentinel-2 {-}
+```{r, out.width = "100%", fig.cap= "Preprocessed Sentinel-2 RGB image around Goettingen, which was used for tree species predictions"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_s2.jpg")
+```
+
+##### Probability {-}
+```{r, out.width = "100%", fig.cap= "Classification probability around Goettingen (of tree species with highest probability per pixel)"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_probability.jpg")
+```
+
+##### Classification {-}
+```{r, out.width = "100%", fig.cap= "Tree species classification result around Goettingen"}
+knitr::include_graphics("https://raw.githubusercontent.com/wiesehahn/baumarten/master/docs/figure/evaluation.Rmd/goe_species.jpg")
+```
+
+
