@@ -24,11 +24,19 @@ library(ranger)
 ```
 
 
-## Model Tuning
+# Model Tuning
+
+## Background
+
+A number of model parameters can be chosen to adapt the model behavior. Model tuning changes these parameters to get optimal results. Also Rnadom forest models have some parameters which can be altered. Parameters to be changed in all classifiers are input variables (bands and indices in our case) and training data. 
+
+## Question
+
+> What is the effect of changing model parameters on our classification results?
+
+## Results
 
 ### Hyperparameter
-
-A number of model parameters can be changed to achieve different results. Model tuning changes these parameters to get optimal results. Overfitting might be a problem. Parameters to be changed in all classifiers are input variables (bands and indices in our case) and training data. 
 
 Hyperparameters in the random forest package include:
 
@@ -44,8 +52,8 @@ The minimum size of a terminal node.
 
 #### Gridsearch Results
 
-The *number of trees* was held constant at a value of 500 because generally it is assumed that more trees give better performance. On the other side larger numbers also mean more processing time.
-Parameters for which a gridsearch was done are the *number of variables per split* and the *minimum terminal node size*. 
+The **number of trees** was held constant at a value of 500. Generally it is assumed that more trees achieve a better performance, but on the other side larger numbers also mean more processing time.
+Parameters for which a gridsearch was done are the **number of variables per split** and the **minimum terminal node size**. 
 
 ```{r read, message=FALSE, warning=FALSE}
 
@@ -170,7 +178,7 @@ The results indicate that in terms of prediction accuracy a model with just `r r
 To have a closer look at the model performance the validation data is classified with the best model obtained by gridsearch.
 
 
-**Error Matrix**
+*Error Matrix*
 ```{r gridsearch_validation_matrix, fig.cap = "Error matrix for gridseach optimzed and simplified rf-model"}
 # validation
 
@@ -212,7 +220,7 @@ cm.all.df %>%
 
 
 
-**Respective Accuracy**
+*Respective Accuracy*
 ```{r gridsearch_validation_accuracy, message=FALSE, warning=FALSE}
 cm.all.acc.df <- as.data.frame(t(cm.all$overall[1:4]))
 
@@ -315,7 +323,7 @@ plot_ly(rfProfile$resample, y = ~Accuracy, x = ~as.factor(Variables),  type = "b
 
 The best model in regards to predictor variables uses `r rfProfile$results[which.max(rfProfile$results$Accuracy),]$Variables` out of 26 variables. However, we can see that the model performs equally good with less predictor variables.
 
-**Chosen variables**
+*Chosen variables*
 
 ```{r rfe_tab_predictors, echo=FALSE}
 predictors.df <- as.data.frame(predictors(rfProfile)) %>% rename("prediction features" = "predictors(rfProfile)")
@@ -323,7 +331,7 @@ predictors.df <- as.data.frame(predictors(rfProfile)) %>% rename("prediction fea
 kable(predictors.df, row.names = T) %>% kable_styling(full_width = F, position = "left")
 ```
 
-**Respective Accuracy**
+*Respective Accuracy*
 
 ```{r rfe_model_accuracy, echo=FALSE, fig.cap= "model performance"}
 
@@ -347,7 +355,7 @@ var_num <- rfProfile$results[whichTwoPct_variables,"Variables"]
 
 As a result we get a model using the following `r var_num` prediction variables instead of all 26 variables, which has almost the same accuracy.
 
-**Chosen variables**
+*Chosen variables*
 
 ```{r rfe_tab_predictors_simp}
 
@@ -359,7 +367,7 @@ bestVar.df <- as.data.frame(bestVar) %>% rename("prediction features" = bestVar)
 kable(bestVar.df, row.names = T) %>% kable_styling(full_width = F, position = "left")
 ```
 
-**Respective Accuracy**
+*Respective Accuracy*
 
 ```{r rfe_simp_model_accuracy, echo=FALSE, fig.cap= "RFE-simplified model performance"}
 
@@ -394,7 +402,7 @@ Applying the final model to predict tree species for the validation data set, th
 
 <br>
 
-**Error Matrix**
+*Error Matrix*
 ```{r rfe_validation_matrix, message=FALSE, warning=FALSE, fig.cap = "Error matrix for RFE- and gridsearch-optimzed rf-model"}
 
 f <- as.formula(paste("Baumart", paste(bestVar, collapse=" + "), sep=" ~ "))
@@ -432,7 +440,7 @@ cm.simp.df %>%
 
 <br>
 
-**Respective Accuracy**
+*Respective Accuracy*
 
 ```{r rfe_validation_accuracy, message=FALSE, warning=FALSE}
 cm.simp.acc.df <- as.data.frame(t(cm.simp$overall[1:4]))
@@ -547,6 +555,6 @@ cm.acc.df <- as.data.frame(t(cm$overall[1:4]))
 kable(cm.acc.df) %>% kable_styling(full_width = F)
 ```
 
-### Conclusion
+## Conclusion
 
 > Neither the Hyperparameter (min.node.size, mtry) nor the prediction variables had significant impact for tuning the model above certain level!

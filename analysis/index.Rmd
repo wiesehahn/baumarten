@@ -18,4 +18,6 @@ editor_options:
 
 ## - [Class Reduction](class_reduction.html)
 
+## - [Probability threshold](probability_threshold.html)
+
 

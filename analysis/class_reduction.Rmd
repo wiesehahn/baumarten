@@ -102,10 +102,12 @@ cm.class <- as.data.frame(cm$byClass)
 kable(cm.class %>% select(`Balanced Accuracy`)) %>% kable_styling(full_width = F)
 ```
 
-> So what happens to prediction accuracies if the number of predicted tree species is reduced?  
+## Question
+> What happens to prediction accuracies if the number of predicted tree species is reduced?  
 
 To test this a model was trained on just four species (beech, spruce, pine, oak) excluding larch and douglas fir, since the 6-class model performs bad for them and additionally they have a low abundance.
 
+## Results
 ```{r model_ranger_4-class}
 
 
@@ -218,7 +220,7 @@ kable(cm.reduced.class %>% select(`Balanced Accuracy`)) %>% kable_styling(full_w
 Compared to the 6-class model accuracies for all four species increased. Especially the accuracy for pine increased a lot.
 
 
-### Sample Predictions
+### By region
 
 The classification probabilities for each class and the final predictions were calculated for study sites to compare the 6-class and the 4-class model visually.
 
@@ -682,7 +684,7 @@ levelplot(sol.6class,margin=FALSE,par.settings=list(axis.line=list(col='transpar
 levelplot(sol.4class,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#ffffff", "#bf7013","#4066aa","#94a6b0", "#fecc00"),maxpixels = 1e6)
 ```
 
-### Probability distribution
+### Prediction probability
 
 ```{r predict_vaidation_4-class}
 
@@ -706,11 +708,38 @@ test.df.long.4class<- test.df %>%
 ```
 
 
-**Overall**
+#### Overall {.tabset .tabset-pills} 
 
 The average prediction certainty is higher with the 4-class model than with the 6-class model in the Solling area (`r round(cellStats(rf.votes.sol.4class[[5]], 'mean'), digits = 2)` vs. `r round(cellStats(rf.votes.sol.6class[[7]], 'mean'), digits = 2)`) and in the Harz area (`r round(cellStats(rf.votes.har.4class[[5]], 'mean'), digits = 2)` vs. `r round(cellStats(rf.votes.har.6class[[7]], 'mean'), digits = 2)`).
 
-**By Species**
+##### 6-class
+
+```{r plot_density_6class, fig.cap="Relative distributions of prediction probabilities by tree species, using the 6-class model"}
+
+ggplot(test.df.long.6class %>% filter( prediction == species),aes(x=probability, fill = result))+
+  geom_density(alpha = 0.7)  +
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.95))
+
+```
+
+##### 4-class
+
+```{r plot_density_4class, fig.cap="Relative distributions of prediction probabilities by tree species, using the 6-class model"}
+
+ggplot(test.df.long.4class %>% filter( prediction == species),aes(x=probability, fill = result))+
+  geom_density(alpha = 0.7)  +
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.95))
+
+```
+
+
+#### By species {.tabset .tabset-pills} 
 
 <!-- Having a look at the correctly classified reference sites we can see that a reduced set of predicted tree species results in higher model certainties for all species.  -->
 
@@ -763,63 +792,39 @@ The average prediction certainty is higher with the 4-class model than with the 
 
 <!-- Probabilities for the (true) reference species, which were classified incorrectly as another species increased slighty with reduced number of predicted species. This is mainly due to the fact that probabilities are split among four instead of six species. -->
 
-
-#### correct {.tabset .tabset-pills} 
-
 ##### 6-class
 
-```{r plot_hist_correct_6class, fig.cap="Relative probability distributions for correctly classified forest stands by tree species using 6-class model"}
+```{r plot_density_by_species_6class, fig.cap="Relative distributions of prediction probabilities by tree species, using the 6-class model"}
 
-ggplot(test.df.long.6class %>% filter(prediction == reference, prediction == species),aes(x=probability, fill = reference))+
-  geom_histogram(aes(y=0.05* ..density..),
-                 alpha=1,position="dodge",binwidth=0.05)+
-  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position = "none") +
-  scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"))
+ggplot(test.df.long.6class %>% filter( prediction == species),aes(x=probability, fill = result))+
+  geom_density(alpha = 0.7) + 
+  facet_grid(species ~ .,  scales="free") +
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.95))
 
 ```
 
-It is obvious that the model is not good at predicting douglas fir, larch and pine. Forest stands of these species are classified correctly with a prediction probability which is much lower than these of beach spruce or oak. 
+It is obvious that the model is not good at predicting douglas fir, larch and pine. Forest stands of these species are classified correctly with a prediction probability which is on average much lower than these of beech, spruce or oak. 
 
 ##### 4-class
 
-```{r plot_hist_correct_4class, fig.cap="Relative probability distributions for correctly classified forest stands by tree species using 4-class model"}
+```{r plot_density_by_species_4class, fig.cap="Relative distributions of prediction probabilities by tree species, using the 4-class model"}
 
-ggplot(test.df.long.4class %>% filter(prediction == reference, prediction == species),aes(x=probability, fill = reference))+
-  geom_histogram(aes(y=0.05* ..density..),
-                 alpha=1,position="dodge",binwidth=0.05)+
-  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position = "none") +
-  scale_fill_manual(values=c("#bf7013","#4066aa","#94a6b0","#fecc00"))
-
-```
-
-Training the model on just 4 classes results in better performances for all four species. But especially pine stands are predicted with higher certainties if we exclude douglas fir and larch.
-
-#### incorrect {.tabset .tabset-pills} 
-
-##### 6-class
-
-```{r plot_hist_incorrect_6class, fig.cap="Relative probability distributions for incorrectly classified forest by tree species stands using the 6-class model"}
-
-ggplot(test.df.long.6class %>% filter(prediction != reference, prediction == species),aes(x=probability, fill = prediction))+
-  geom_histogram(aes(y=0.05* ..density..),
-                 alpha=1,position="dodge",binwidth=0.1)+
-  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position="bottom") +
-  scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"))
+ggplot(test.df.long.4class %>% filter( prediction == species),aes(x=probability, fill = result))+
+  geom_density(alpha = 0.7) + 
+  facet_grid(species ~ .,  scales="free") +
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.95))
 
 ```
 
-Most incorrectly classified forest stands are predicted with a probability of less than 0.7. This is especially true for pine, larch and oak.
+Training the model on just 4 classes results in better performances for all four species. But especially pine stands are predicted with higher probabilities if we exclude douglas fir and larch.
 
-##### 4-class
-
-```{r plot_hist_incorrect_4class, fig.cap="Relative probability distributions for incorrectly classified forest stands by tree species using the 4-class model"}
-
-ggplot(test.df.long.4class %>% filter(prediction != reference, prediction == species, reference %in% c("BU", "FI", "KI", "TEI")),aes(x=probability, fill = prediction))+
-  geom_histogram(aes(y=0.05* ..density..),
-                 alpha=1,position="dodge",binwidth=0.1)+
-  facet_grid(species ~ .)+ theme_classic() + theme(axis.title.y = element_blank(), legend.position="bottom") +
-  scale_fill_manual(values=c("#bf7013","#4066aa","#94a6b0", "#fecc00"))
-
-```
+#### {-}
 
 Prediction probabilities  of incorrectly classified forest stands increase slightly when using the 4-class model. This is mainly due to the fact that probabilities (always summing up to 1) are distributed among four instead of six classes.
+

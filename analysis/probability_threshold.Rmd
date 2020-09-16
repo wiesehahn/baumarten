@@ -1,0 +1,870 @@
+---
+# title: "probability threshold"
+author: "wiesehahn"
+date: "2020-09-11"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(# fig.width=12, fig.height=8, 
+  echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r}
+library(here)
+library(rgdal)
+library(raster)
+library(dplyr)
+library(tidyr)
+library(groupdata2)
+library(randomForest)
+library(ggplot2)
+library(rasterVis)
+library(ggridges)
+
+```
+
+## Probability filtering
+
+### Background
+
+To predict the tree species for a pixel our random forest model calculates relative probabilities for that pixel to belong to each class. These probabilities sum up to 1. The tree species is predicted by choosing the class with highest probability. In areas where the model is quite sure probabilities will be high for one species and low for the others. In areas where the model is not fitted perfectly probabilities will be similar between species. The idea is to mask pixel predictions with low certainties and fill them with predictions of surrounding pixels in a later step.
+
+```{r load_reference}
+# load and filter reference data
+
+filename = here("data/reference/train_test/train_test_with_id.rds")
+
+if (file.exists(filename)){
+  
+  ref <- readRDS(filename)
+  
+} else{
+  
+train_test <- read_csv(here("data/reference/train_test/S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi.csv"))
+
+#add unique polygon id
+train_test <- train_test %>% unite("PolygonID", c("Gebiet","ID"), remove = FALSE)
+
+# as factor
+cols <- c("ID", "BA", "Baumart", "wbz", "Gebiet", "PolygonID")
+train_test[cols] <- lapply(train_test[cols], as.factor)
+levels(train_test$Baumart) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+
+# rename
+ref <- train_test %>% 
+  rename_with(~ gsub("S2B_MSIL2A_20170823T103019_N0205_R108_T32UNC_20170823T103018_Dsen2_TopCorSlope10K06ndvi", "band", .x, fixed = TRUE))
+
+# subset
+ref <- ref %>% 
+  select(-ID, -X1, -BA, - wbz, -Gebiet)
+
+  
+  # save data
+  saveRDS(ref, filename)
+  
+}
+
+```
+
+```{r rf_init}
+# model parameter
+ntree <- 500
+nodesize <- 1
+splitvariables <- 2
+# make reproducible
+set.seed(42)
+```
+
+
+
+```{r train_test_kfold_6-class}
+# using 5-fold reference data to create 5 times random forest model based on 4/5 of reference data and validate on 1/5
+# reference data is folded by entire polygons and balanced by tree species
+satData <- ref 
+
+# fold data by polygons balanced by tree species
+kfold <- 5
+satData_folded <- fold(satData, kfold, cat_col = 'Baumart', id_col = 'PolygonID', method = 'n_dist')
+satData_folded <- satData_folded %>% ungroup()
+
+
+predictors <- names(satData_folded %>% select(contains("band"), contains("_VI")))
+f <- as.formula(paste("Baumart", paste(predictors, collapse=" + "), sep=" ~ "))
+
+# init model loop
+vali.df <- data.frame()
+i <- 1
+invisible(gc())
+
+
+for (i in 1:kfold){
+  
+  vali  <- satData_folded %>% filter(.folds == i) %>% select(Baumart, contains("band"), contains("_VI"), PolygonID)
+  traini<- satData_folded %>% filter(.folds != i) %>% select(Baumart, contains("band"), contains("_VI"))
+  
+  rf <- randomForest::randomForest(
+    formula   = f, 
+    data      = traini, 
+    nodesize  = nodesize,
+    mtry      = splitvariables,
+    ntree = ntree,
+    probability = T, 
+    xtest=vali %>% select(contains("band"), contains("_VI")), 
+    ytest=vali$Baumart,
+    proximity=F, importance=F, keep.forest=T)
+  
+  pred <- predict(rf, vali, type="vote")
+ 
+  pred.df <- as.data.frame(pred)
+  vali.fold <- merge(vali %>% select(PolygonID, Baumart), pred.df, by=0, all=TRUE)
+  vali.df <- rbind(vali.df, vali.fold)
+  
+invisible(gc())
+  
+}
+
+
+vali.df <- vali.df %>% 
+  rename(reference = "Baumart") %>%
+  mutate(prediction = colnames(vali.df[4:9])[max.col(vali.df[4:9], ties.method = "first")],
+         result = if_else(reference != prediction,"incorrect", "correct"))
+
+
+vali.long.6class<- vali.df %>%
+  reshape2::melt(id.vars = c("Row.names", "PolygonID", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+
+```
+
+```{r train_test_kfold_4-class}
+# using 5-fold reference data to create 5 times random forest model based on 4/5 of reference data and validate on 1/5
+# reference data is folded by entire polygons and balanced by tree species
+
+# drop classes larch and douglas fir
+satData <- ref %>% filter(Baumart %in% c("BU", "FI", "KI", "TEI")) %>% droplevels()
+
+# fold data by polygons balanced by tree species
+kfold <- 5
+satData_folded <- fold(satData, kfold, cat_col = 'Baumart', id_col = 'PolygonID', method = 'n_dist')
+satData_folded <- satData_folded %>% ungroup()
+
+
+predictors <- names(satData_folded %>% select(contains("band"), contains("_VI")))
+f <- as.formula(paste("Baumart", paste(predictors, collapse=" + "), sep=" ~ "))
+
+# init model loop
+vali.df <- data.frame()
+i <- 1
+invisible(gc())
+
+
+for (i in 1:kfold){
+  
+  vali  <- satData_folded %>% filter(.folds == i) %>% select(Baumart, contains("band"), contains("_VI"), PolygonID)
+  traini<- satData_folded %>% filter(.folds != i) %>% select(Baumart, contains("band"), contains("_VI"))
+  
+  rf <- randomForest::randomForest(
+    formula   = f, 
+    data      = traini, 
+    nodesize  = nodesize,
+    mtry      = splitvariables,
+    ntree = ntree,
+    probability = T, 
+    xtest=vali %>% select(contains("band"), contains("_VI")), 
+    ytest=vali$Baumart,
+    proximity=F, importance=F, keep.forest=T)
+  
+  pred <- predict(rf, vali, type="vote")
+ 
+  pred.df <- as.data.frame(pred)
+  vali.fold <- merge(vali %>% select(PolygonID, Baumart), pred.df, by=0, all=TRUE)
+  vali.df <- rbind(vali.df, vali.fold)
+  
+invisible(gc())
+  
+}
+
+
+vali.df <- vali.df %>% 
+  rename(reference = "Baumart") %>%
+  mutate(prediction = colnames(vali.df[4:7])[max.col(vali.df[4:7], ties.method = "first")],
+         result = if_else(reference != prediction,"incorrect", "correct"))
+
+
+vali.long.4class<- vali.df %>%
+  reshape2::melt(id.vars = c("Row.names", "PolygonID", "reference", "prediction", "result"),
+                 variable.name = "species",
+                 value.name = "probability")
+
+```
+
+
+```{r calc_threshold_6class}
+# calculate probability threshold for which correct and incorrect classifications are equal
+
+# create column with 1s
+vali.long.6class$rec <- 1
+ 
+# calculate cumulative count
+vali.count.6class <- vali.long.6class %>% 
+  filter(prediction == species) %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+
+# calculate cumulative count
+correct.count.6class <- vali.long.6class %>%
+  filter(prediction == species, result == "correct") %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+# calculate cumulative count
+incorrect.count.6class <- vali.long.6class %>%
+  filter(prediction == species, result == "incorrect") %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+vali.equal.6class <- inner_join(correct.count.6class %>% select(probability, count), incorrect.count.6class %>% select(probability, count), by = c("probability")) %>% mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability), cutoff = median(count.x)/nrow(vali.count.6class)) %>% select(-diff)
+
+
+```
+
+```{r calc_threshold_4class}
+# calculate probability threshold for which correct and incorrect classifications are equal
+
+# create column with 1s
+vali.long.4class$rec <- 1
+ 
+# calculate cumulative count
+vali.count.4class <- vali.long.4class %>% 
+  filter(prediction == species) %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+
+# calculate cumulative count
+correct.count.4class <- vali.long.4class %>%
+  filter(prediction == species, result == "correct") %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+# calculate cumulative count
+incorrect.count.4class <- vali.long.4class %>%
+  filter(prediction == species, result == "incorrect") %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  select(-rec) # remove column that is not needed
+
+vali.equal.4class <- inner_join(correct.count.4class %>% select(probability, count), incorrect.count.4class %>% select(probability, count), by = c("probability")) %>% mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability), cutoff = median(count.x)/nrow(vali.count.4class)) %>% select(-diff)
+
+
+```
+
+```{r save_thresholds}
+filename <- here("data/models/thresholds_4-6-class.rds")
+
+if (!file.exists(filename)){
+  classification <- c("model.6class", "model.4class")
+  threshold <- c(vali.equal.6class$threshold, vali.equal.4class$threshold)
+  cutoff <- c(vali.equal.6class$cutoff, vali.equal.4class$cutoff)
+  threshdata <- data.frame(classification, threshold, cutoff)
+
+  saveRDS(threshdata, file = filename)
+}
+
+```
+
+
+#### Probability distributions {.tabset .tabset-pills} 
+
+Most data which was classified correctly had high probability values, while incorrectly classified validation data has a much wider distribution but was mostly classified with probabilities around 0.5. Using a 4-class model without larch and douglas fir especially increased the probabilities of correctly classified validation pixels.
+
+##### 6-class
+
+```{r plot_probs_result_6class, fig.cap="Prediction probability distributions (correct cs. incorrect), using 6-class model"}
+
+ggplot(vali.long.6class %>% filter(prediction == species), aes(probability, fill = result)) + geom_density(alpha = 0.7) + 
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.9))
+
+# ggplot(vali.long.6class %>% filter(prediction == species), aes(x =probability,y = ..count../sum(..count..), fill = result)) + 
+#   geom_histogram(alpha = 0.7, binwidth = 0.05) + 
+#   scale_fill_manual(values=c("#56B4E9","#999999")) +
+#   ylab("Proportion of validation data")+
+#   lims(y = c(0, 0.7)) +
+#   theme_classic()
+
+```
+
+##### 4-class
+
+```{r plot_probs_result_4class, fig.cap="Prediction probability distributions (correct cs. incorrect), using 4-class model"}
+
+ggplot(vali.long.4class %>% filter(prediction == species), aes(probability, fill = result)) + geom_density(alpha = 0.7) + 
+  scale_fill_manual(values=c("#56B4E9","#999999")) +
+  labs(fill = element_blank(), y= "Validation density", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.9))
+
+# ggplot(vali.long.4class %>% filter(prediction == species), aes(x =probability,y = ..count../sum(..count..), fill = result)) + 
+#   geom_histogram(alpha = 0.7, binwidth = 0.05) + 
+#   scale_fill_manual(values=c("#56B4E9","#999999")) +
+#   ylab("Proportion of validation data")+
+#   lims(y = c(0, 0.7)) +
+#   theme_classic()
+
+```
+
+
+### Question
+
+> Up until which classification probability is the chance of misclassification higher than the chance of correct classification?
+
+
+### Results
+
+#### By model {.tabset .tabset-pills} 
+
+Up until a probability value of `r vali.equal.6class$threshold` in the 6-class model, the chance of a pixel being misclassified is higher than the chance for correct classification. With higher probabilities we see a steep rise in correct classifications while incorrect classifications occur to a smaller fraction.
+
+##### 6-class
+
+```{r plot_threshold_6-class, fig.cap="Cumulative proportion of correctly and incorrectly predicted validation data by prediction probability and corresponding threshold for equal shares (using 6-class model)"}
+ 
+ggplot(data=vali.count.6class, aes(x=probability, y=count/nrow(vali.count.6class), color = result)) +
+  geom_line()+
+  lims(y = c(0, 1), x= c(0.2, 1)) +
+  scale_color_manual(values=c("#56B4E9","#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="black", linetype = "longdash")+
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Threshold: ", vali.equal.6class$threshold), color="black", angle=90, vjust = -1)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.9))
+```
+
+Using a probability threshold of `r vali.equal.6class$threshold` approximately `r round(vali.equal.6class$cutoff*2*100, 1)`% of the predictions are masked when using the 6-class model. About `r round(vali.equal.6class$cutoff*100, 1)`% of each correctly and incorrectly classified pixels will be masked.
+
+##### 4-class
+
+```{r plot_threshold_4-class, fig.cap="Cumulative proportion of correctly and incorrectly predicted validation data by prediction probability and corresponding threshold for equal shares (using 4-class model)"}
+
+ggplot(data=vali.count.4class, aes(x=probability, y=count/nrow(vali.count.4class), color = result)) +
+  geom_line()+
+  lims(y = c(0, 1), x= c(0.2, 1)) +
+  scale_color_manual(values=c("#56B4E9","#999999")) +
+  geom_vline(xintercept = vali.equal.4class$threshold, color="black", linetype = "longdash")+
+  annotate(geom="text", x=vali.equal.4class$threshold, y= 0.8, label=paste0("Threshold: ", vali.equal.4class$threshold), color="black", angle=90, vjust = -1)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position = c(0.1, 0.9))
+```
+
+Using a probability threshold of `r vali.equal.4class$threshold` approximately `r round(vali.equal.4class$cutoff*2*100, 1)`% of the predictions are masked when using the 4-class model. About `r round(vali.equal.4class$cutoff*100, 1)`% of each correctly and incorrectly classified pixels will be masked.
+
+#### By region
+
+
+```{r load_classification_map}
+#load map created by beckschaefer
+
+path.img <- "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu.tif"
+img.class <- raster(path.img) 
+
+img.class <- ratify(img.class)
+
+rat <- levels(img.class)[[1]]
+rat$landcover <- c("BU", "DGL", "FI", "KI","LAE", "TEI")
+rat$code <- c(1,2,3,4,5,6)
+levels(img.class) <- rat
+
+```
+
+```{r load_probability_map}
+#load map created by beckschaefer
+
+path.img <- "G:/B/SG4/wiesehahn/von_philip/RandomForest_Baumarten/S2B_MSIL2A_20170823T103019_N0205_R108_T32UND_20170823T103018_Dsen2_TopCorSlope10K06ndvi_VI_HrzSolHei_int1U_neu_rfprob.tif"
+img.votes <- stack(path.img) 
+
+```
+
+```{r load_aoi}
+# load data
+ref.sol <- readOGR(dsn= here("data/reference/Solling"), layer = "Training_Solling_2", stringsAsFactors = T, verbose=F)
+
+ref.har <- readOGR(dsn=here("data/reference/Harz"), layer = "Training_Harz_2", stringsAsFactors = T, verbose=F)
+
+ref.hei <- readOGR(dsn=here("data/reference/Heide"), layer = "Training_Heide_2", stringsAsFactors = T, verbose=F)
+
+# ref.all <- rbind(ref.sol,ref.har,ref.hei)
+# 
+# 
+# # transform
+# ref <- spTransform(ref.all, CRS("+init=epsg:4326"))
+
+
+# set same relative extent
+ext.sol <- extent(ref.sol)
+ext.dist <- min(ext.sol@xmax - ext.sol@xmin, ext.sol@ymax - ext.sol@ymin)
+
+ext.sol@xmax <- ext.sol@xmin + ext.dist
+ext.sol@ymax <- ext.sol@ymin + ext.dist
+
+ext.har <- extent(ref.har)
+ext.har@xmax <- ext.har@xmin + ext.dist
+ext.har@ymax <- ext.har@ymin + ext.dist
+
+ext.hei <- extent(ref.hei)
+ext.hei@xmax <- ext.hei@xmin + ext.dist
+ext.hei@ymax <- ext.hei@ymin + ext.dist
+```
+
+
+```{r crop_images}
+img.class.har <- crop(img.class, ext.har)
+img.votes.har <- crop(img.votes, ext.har)
+
+img.class.sol <- crop(img.class, ext.sol)
+img.votes.sol <- crop(img.votes, ext.sol)
+
+img.class.hei <- crop(img.class, ext.hei)
+img.votes.hei <- crop(img.votes, ext.hei)
+```
+
+
+```{r mask_images_by_probability}
+
+filename <- here("data/models/thresholds_4-6-class.rds")
+threshdata <- readRDS(file = filename)
+
+class.high.har <- mask(img.class.har, img.votes.har < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 1)
+class.low.har <- mask(img.class.har, img.votes.har < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 0)
+
+class.high.sol <- mask(img.class.sol, img.votes.sol < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 1)
+class.low.sol <- mask(img.class.sol, img.votes.sol < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 0)
+
+class.high.hei <- mask(img.class.hei, img.votes.hei < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 1)
+class.low.hei <- mask(img.class.hei, img.votes.hei < threshdata$threshold[threshdata$classification == "model.6class"]*100, maskvalue = 0)
+
+```
+
+
+
+
+
+
+#### Harz {.tabset .tabset-pills} 
+
+##### Probability
+
+```{r plot_harz_probability_6-class_max, fig.cap="Classification probability (maximum among species) calculated by the model"}
+
+levelplot(img.votes.har, margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Classification
+
+```{r plot_harz_prediction_6-class, fig.cap="Tree species predictions from highest probabilities in the study area Harz"}
+
+levelplot(img.class.har,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+
+##### High probability
+
+```{r plot_harz_high-prediction_6-class, fig.cap="Tree species predictions with high probabilities (above threshold)"}
+
+levelplot(class.high.har,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Low probability
+
+```{r plot_harz_low-prediction_6-class, fig.cap="Tree species predictions with low probabilities (below threshold)"}
+
+levelplot(class.low.har,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Histogram
+
+```{r plot_class-hist_har, fig.cap="Histogram of predictions in the study area Harz, differentiated between low and high probabilities"}
+
+dat <- as.factor(values(class.low.har))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.low.df<- as.data.frame(dat)
+class.low.df$probability <- as.factor("below threshold")
+
+
+dat <- as.factor(values(class.high.har))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.high.df<- as.data.frame(dat)
+class.high.df$probability <- as.factor("above threshold")
+
+class.df <- rbind(class.low.df,class.high.df) 
+
+ggplot(class.df) +
+  geom_histogram(aes(x= dat, y = ..count../sum(..count..)*100, fill = probability), color="white", stat="count", alpha=0.7)+
+  scale_fill_manual(values=c("#999999", "#56B4E9"))+
+  labs(fill = element_blank(), y= "Relative mapping proportion", x=element_blank())+
+  theme_classic()+
+  theme(legend.position=c(0.9, 0.9))
+
+
+```
+
+#### Solling {.tabset .tabset-pills} 
+
+##### Probability
+
+```{r plot_sol_probability_6-class_max, fig.cap="Classification probability (maximum among species) calculated by the model"}
+
+levelplot(img.votes.sol, margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Classification
+
+```{r plot_sol_prediction_6-class, fig.cap="Tree species predictions from highest probabilities in the study area Solling"}
+
+levelplot(img.class.sol,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+
+##### High probability
+
+```{r plot_sol_high-prediction_6-class, fig.cap="Tree species predictions with high probabilities (above threshold)"}
+
+levelplot(class.high.sol,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Low probability
+
+```{r plot_sol_low-prediction_6-class, fig.cap="Tree species predictions with low probabilities (below threshold)"}
+
+levelplot(class.low.sol,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Histogram
+
+```{r plot_class-hist_sol, fig.cap="Histogram of predictions in the study area Solling, differentiated between low and high probabilities"}
+
+dat <- as.factor(values(class.low.sol))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.low.df<- as.data.frame(dat)
+class.low.df$probability <- as.factor("below threshold")
+
+
+dat <- as.factor(values(class.high.sol))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.high.df<- as.data.frame(dat)
+class.high.df$probability <- as.factor("above threshold")
+
+class.df <- rbind(class.low.df,class.high.df) 
+
+ggplot(class.df) +
+  geom_histogram(aes(x= dat, y = ..count../sum(..count..)*100, fill = probability), color="white", stat="count", alpha=.7)+
+  scale_fill_manual(values=c("#999999", "#56B4E9"))+
+  labs(fill = element_blank(), y= "Relative mapping proportion", x=element_blank())+
+  theme_classic()+
+  theme(legend.position=c(0.9, 0.9))
+
+
+
+```
+
+
+
+#### Heide {.tabset .tabset-pills} 
+
+##### Probability
+
+```{r plot_hei_probability_6-class_max, fig.cap="Classification probability (maximum among species) calculated by the model"}
+
+levelplot(img.votes.hei, margin=FALSE,scales=list(draw=FALSE), par.settings = magmaTheme, maxpixels = 1e6)
+
+```
+
+##### Classification
+
+```{r plot_hei_prediction_6-class, fig.cap="Tree species predictions from highest probabilities in the study area Heide"}
+
+levelplot(img.class.hei,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+
+##### High probability
+
+```{r plot_hei_high-prediction_6-class, fig.cap="Tree species predictions with high probabilities (above threshold)"}
+
+levelplot(class.high.hei,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Low probability
+
+```{r plot_hei_low-prediction_6-class, fig.cap="Tree species predictions with low probabilities (below threshold)"}
+
+levelplot(class.low.hei,margin=FALSE,par.settings=list(axis.line=list(col='transparent')),scales=list(draw=FALSE), col.regions = c( "#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"),maxpixels = 1e6)
+```
+
+##### Histogram
+
+```{r plot_class-hist_hei, fig.cap="Histogram of predictions in the study area Heide, differentiated between low and high probabilities"}
+
+dat <- as.factor(values(class.low.hei))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.low.df<- as.data.frame(dat)
+class.low.df$probability <- as.factor("below threshold")
+
+
+dat <- as.factor(values(class.high.hei))
+dat <- dat[!is.na(dat)]
+levels(dat) <- c("BU", "DGL", "FI", "KI", "LAE", "TEI")
+class.high.df<- as.data.frame(dat)
+class.high.df$probability <- as.factor("above threshold")
+
+class.df <- rbind(class.low.df,class.high.df) 
+
+ggplot(class.df) +
+  geom_histogram(aes(x= dat, y = ..count../sum(..count..)*100, fill = probability), color="white", stat="count", alpha=.7)+
+  scale_fill_manual(values=c("#999999", "#56B4E9"))+
+  labs(fill = element_blank(), y= "Relative mapping proportion", x=element_blank())+
+  theme_classic()+
+  theme(legend.position=c(0.9, 0.9))
+
+
+```
+
+
+#### By species {.tabset .tabset-pills} 
+
+
+```{r plot_prediction_prob_by_species, fig.cap = "Relative density plot of true reference data by predicted tree species"}
+# ggplot(vali.long.6class %>% filter(prediction == species),aes(x=probability, fill = reference))+
+#   geom_density(alpha = 0.7, adjust = 1.5, position = "fill")+
+#   facet_grid(species ~ ., scales="free") +
+#   scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00")) +
+#   geom_vline(xintercept = vali.equal.6class$threshold, color="white", linetype = "longdash") +
+#   labs(fill = element_blank(), y= "Relative density of true species", x="Prediction probability")+
+#   theme_classic()+
+#   theme(legend.position = "bottom")
+```
+
+```{r plot_probs_result_by_species}
+
+# ggplot(vali.long.6class %>% filter(prediction == species),aes(x=probability, fill = result))+
+#   geom_density(alpha = 0.5, adjust = 1)+
+#   facet_grid(species ~ ., scales="free")+
+#   scale_fill_manual(values=c("#56B4E9","#999999")) +
+#   theme_classic()
+
+# # ridgelineplot
+# ggplot(vali.long.6class %>% filter(prediction == species),aes(x=probability, y = reference)) + 
+#   geom_density_ridges2(aes(fill = reference), rel_min_height = 0.001, alpha = 0.9,)+
+#   facet_grid(species ~ ., scales="free")+
+#   scale_fill_manual(values=c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00")) +
+#   theme_classic()
+```
+
+##### Beech
+```{r plot_prediction-probability_bu, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as beech (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "BU") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability), cutoff = median(count.x)/nrow(vali.count)) %>% select(-diff)
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+
+```
+
+The species specific probability threshold for beech (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as beech would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as beech be masked.
+
+##### Douglas fir
+```{r plot_prediction-probability_dgl, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as douglas fir (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "DGL") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability))
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+
+```
+
+The species specific probability threshold for douglas fir (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as douglas fir would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as douglas fir be masked.
+
+##### Spruce
+```{r plot_prediction-probability_fi, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as spruce (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "FI") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability))
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+```
+
+The species specific probability threshold for spruce (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as spruce would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as spruce be masked.
+
+##### Pine
+```{r plot_prediction-probability_ki, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as pine (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "KI") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability))
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+```
+
+The species specific probability threshold for pine (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as pine would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as pine be masked.
+
+##### Larch
+```{r plot_prediction-probability_lae, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as larch (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "LAE") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability))
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+```
+
+The species specific probability threshold for larch (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as larch would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as larch be masked.
+
+##### Oak
+```{r plot_prediction-probability_tei, fig.cap="Cumulative proportion of validation data predicted correctly or incorrectly as oak (by prediction probability) "}
+# calculate cumulative count
+vali.count <- vali.long.6class %>% 
+  filter(prediction == species, prediction == "TEI") %>%
+  group_by(result) %>%
+  arrange(probability) %>%
+  mutate(count=cumsum(rec)) %>%
+  dplyr::select(-rec) # remove column that is not needed
+
+# calculate species specific threshold
+vali.equal.species<- inner_join(vali.count %>% ungroup() %>% filter(result=="correct") %>% select(probability, count),
+                  vali.count %>% ungroup() %>% filter(result=="incorrect") %>% select(probability, count),by = c("probability"))  %>% 
+  mutate(diff = count.x - count.y) %>% filter(diff == 0) %>% group_by(diff) %>% summarize(threshold= median(probability))
+
+ggplot(data=vali.count, aes(x=probability, y=count/nrow(vali.count), color = result)) +
+  geom_line()+
+  scale_color_manual(values=c("#56B4E9", "#999999")) +
+  geom_vline(xintercept = vali.equal.6class$threshold, color="grey", linetype = "longdash")+
+  geom_vline(xintercept = vali.equal.species$threshold, color="black", linetype = "longdash")+
+  lims(y = c(0, 1)) +
+  annotate(geom="text", x=vali.equal.6class$threshold, y= 0.8, label=paste0("Overall threshold: ", vali.equal.6class$threshold), color="grey", angle=90, vjust = -0.8)+
+   annotate(geom="text", x=vali.equal.species$threshold, y= 0.4, label=paste0("Species specific threshold: ", vali.equal.species$threshold), color="black", angle=90, vjust = -0.8)+
+  labs(color = element_blank(), y= "Cumulative proportion of validation data", x="Prediction probability")+
+  theme_classic()+
+  theme(legend.position=c(0.1, 0.9))
+```
+
+The species specific probability threshold for oak (below which more predictions are classified incorrectly and than correctly) is `r vali.equal.species$threshold`. Approximately `r round(vali.equal.species$cutoff*2*100, 1)`% of the predictions classified as oak would be masked if we apply this threshold. About `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified correctly and `r round(vali.equal.species$cutoff*100, 1)`% of pixels classified incorrectly as oak be masked.
+
+#### {-}
+
+As we can see the probability threshold below which predictions are more likely to be misclassified than correctly classified also varies by species. However, the exact distribution of prediction probabilities and their classification result varies between random forest models which are created by stratified but randomized folding in our case. For a different random seed the species specific threshold might change to a certain degree. 
+
