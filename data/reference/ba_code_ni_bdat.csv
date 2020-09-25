@@ -1,0 +1,92 @@
+id_ni;kurz_ni;id_bdat;kurz;lang;short;long;scientific;gruppe
+511;Fi;1;Fi;Fichte;NS;Norway spruce;Picea abies;FI
+512;SFi;2;SF;Sitka-Fichte;SS;Sitka spruce;Picea sitchensis;FI
+520;Ta;3;Ta;Tanne;ESF;European silver fir;Abies alba;SNB
+521;WTa;3;Ta;Tanne;ESF;European silver fir;Abies alba;SNB
+523;KTa;4;KT;Kuestentanne;GF;Grand fir;Abies grandis;SNB
+711;Ki;5;Kie;Kiefer;SP;Scotch pine;Pinus sylvestris;KI
+712;SKi;6;SK;Schwarzkiefer;AUP;Austrian pine;Pinus nigra;KI
+731;Stro;7;WK;Weymouthskiefer;WEP;Weymouth pine;Pinus strobus;KI
+611;Dgl;8;DG;Douglasie;DF;Douglas fir;Pseudotsuga menziesii;DGL
+810;Lä;9;La;Laerche;XLA;larch;Larix spp.;LAE
+813;SuLä;9;La;Laerche;XLA;larch;Larix spp.;LAE
+814;HyLä;9;La;Laerche;XLA;larch;Larix spp.;LAE
+811;ELä;10;EL;Europ. Laerche;ELA;European larch;Larix decidua;LAE
+812;JLä;11;JL;Jap. Laerche;JLA;Japanese larch;Larix kaempferi;LAE
+542;Th;12;Th;Thuja;RC;Western red cedar;Thuja plicata;SNB
+541;Ts;13;Ts;Tsuga;WH;Western hemlock;Tsuga heterophylla;SNB
+513;OFi;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+514;SteFi;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+522;NTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+524;KolTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+525;ETa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+526;JTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+527;LTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+528;VeiTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+529;PurTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+531;SiTa;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+532;RZyp;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+543;Ch;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+551;Seqg;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+552;Metg;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+561;Eibe;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+713;BKi;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+714;BaKi;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+715;PKi;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+716;Pcont;14;SN;sNB;XC;other conifers;Coniferales trees;SNB
+211;Bu;15;Bu;Buche;BE;beech;Fagus sylvatica;BU
+221;HBu;16;HB;Hainbuche;HBM;hornbeam;Carpinus betulus;SLB
+110;Ei;17;Ei;Eiche;OK;oak (robur/petraea);Quercus spp.;EI
+111;SEi;17;Ei;Eiche;OK;oak (robur/petraea);Quercus spp.;EI
+112;TEi;17;Ei;Eiche;OK;oak (robur/petraea);Quercus spp.;EI
+113;REi;18;RE;Roteiche;ROK;Red oak;Quercus rubra;EI
+430;Pa;19;Pa;Pappel;XPO;poplar;Populus spp.;SLB
+431;As;19;Pa;Pappel;XPO;poplar;Populus spp.;SLB
+432;SPa;19;Pa;Pappel;XPO;poplar;Populus spp.;SLB
+433;GPa;19;Pa;Pappel;XPO;poplar;Populus spp.;SLB
+434;BPa;20;BP;Balsampappel;BPO;Balsam poplar;Populus balsamifera;SLB
+311;Es;21;Es;Esche;AH;ash;Fraxinus excelsior;SLB
+320;Ah;22;Ah;Ahorn;XAH;maple;Acer spp.;SLB
+321;BAh;23;BA;Bergahorn;SY;sycamore;Acer pseudoplatanus;SLB
+322;SAh;24;SA;Spitzahorn;NOM;Norway maple;Acer platanoides;SLB
+323;FAh;25;FA;Feldahorn;FM;Field maple;Acer campestre;SLB
+410;Bi;26;Bi;Birke;XBI;birch;Betula spp.;SLB
+411;SBi;26;Bi;Birke;XBI;birch;Betula spp.;SLB
+412;MBi;26;Bi;Birke;XBI;birch;Betula spp.;SLB
+413;JBi;26;Bi;Birke;XBI;birch;Betula spp.;SLB
+414;HyBi;26;Bi;Birke;XBI;birch;Betula spp.;SLB
+340;Li;27;Li;Linde;LI;lime tree;Tilia spp.;SLB
+341;SLi;27;Li;Linde;LI;lime tree;Tilia spp.;SLB
+342;WLi;27;Li;Linde;LI;lime tree;Tilia spp.;SLB
+420;Erl;28;Er;Erle;AR;alder;Alnus spp.;SLB
+421;RErl;28;Er;Erle;AR;alder;Alnus spp.;SLB
+422;WErl;28;Er;Erle;AR;alder;Alnus spp.;SLB
+423;GErl;28;Er;Erle;AR;alder;Alnus spp.;SLB
+354;Kir;29;Kir;Kirsche;WCH;Wild cherry;Prunus avium;SLB
+330;Rü;30;Ul;Ulme;EM;elm;Ulmus spp.;SLB
+331;BRü;30;Ul;Ulme;EM;elm;Ulmus spp.;SLB
+332;FlaRü;30;Ul;Ulme;EM;elm;Ulmus spp.;SLB
+333;FRü;30;Ul;Ulme;EM;elm;Ulmus spp.;SLB
+351;Rob;31;Ro;Robinie;BL;black locust;Robinia pseudoacacia;SLB
+357;Els;32;El;Elsbeere;WST;Wild service tree;Sorbus torminalis;SLB
+352;Kast;33;Ka;Kastanie;SC;Sweet chestnut;Castanea sativa;SLB
+441;Wei;34;We;Weide;XWL;willow;Salix spp.;SLB
+114;ZEi;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+115;SuEi;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+353;Nuß;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+355;Apf;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+356;Bir;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+358;Spei;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+359;Mehl;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+361;Tul;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+362;Hi;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+363;Pla;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+364;Mispel;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+365;Zwe;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+442;RKast;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+452;sTKir;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+453;fTkir;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+454;Hasel;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+455;Ilex;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+456;B.-Hasel;35;LB;sLB;XB;other broadleaves;Magnoliopsida trees;SLB
+451;EbEs;36;VB;Vogelbeere;ROW;rowan;Sorbus aucuparia;SLB

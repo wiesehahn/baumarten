@@ -24,37 +24,32 @@ library(plotly)
 library(caret)
 library(RColorBrewer)
 library(kableExtra)
+library(here)
 
 # load data
-ref.sol <- readOGR(dsn="../data/reference/Solling", layer = "Training_Solling_2", stringsAsFactors = T, verbose=F)
+ref.sol <- readOGR(dsn=here("/data/reference/Solling"), layer = "Training_Solling_2", stringsAsFactors = T, verbose=F)
 ref.sol@data$site = as.factor("Solling")
-ref.sol@data$BA <- plyr::revalue(ref.sol@data$BA, c("112"="Eiche", 
-                    "211"="Buche",
-                    "511"="Fichte",
-                    "611"="Douglasie",
-                    "711"="Kiefer",
-                    "811"="Laerche"))
-ref.sol@data$ID = as.numeric(as.character(ref.sol@data$ID))
 
-ref.har <- readOGR(dsn="../data/reference/Harz", layer = "Training_Harz_2", stringsAsFactors = T, verbose=F)
+ref.har <- readOGR(dsn=here("/data/reference/Harz"), layer = "Training_Harz_2", stringsAsFactors = T, verbose=F)
 ref.har@data$site = as.factor("Harz")
-ref.har@data$BA <- plyr::revalue(ref.har@data$BA, c("112"="Eiche", 
-                    "211"="Buche",
-                    "511"="Fichte",
-                    "611"="Douglasie",
-                    "711"="Kiefer",
-                    "811"="Laerche"))
 
-ref.hei <- readOGR(dsn="../data/reference/Heide", layer = "Training_Heide_2", stringsAsFactors = T, verbose=F)
+ref.hei <- readOGR(dsn=here("/data/reference/Heide"), layer = "Training_Heide_2", stringsAsFactors = T, verbose=F)
 ref.hei@data$site = as.factor("Heide")
-ref.hei@data$BA <- plyr::revalue(ref.hei@data$BA, c("112"="Eiche", 
-                    "211"="Buche",
-                    "511"="Fichte",
-                    "611"="Douglasie",
-                    "711"="Kiefer",
-                    "811"="Laerche"))
 
 ref.all <- rbind(ref.sol,ref.har,ref.hei)
+
+
+ref.all@data$BA <- plyr::revalue(ref.all@data$BA, c("211"="BU",
+                                                    "112"="EI",
+                                                    "511"="FI",
+                                                    "611"="DGL",
+                                                    "711"="KI",
+                                                    "811"="LAE"))
+
+                    
+                    
+ref.all@data <- ref.all@data %>% 
+  mutate(BA = fct_relevel(BA, c("BU", "DGL", "FI", "KI", "LAE", "EI")))
 
 
 # transform
@@ -78,10 +73,10 @@ ext.hei@ymax <- ext.hei@ymin + ext.dist
 
 
 # set color palette for leaflet
-pal <- colorFactor(c("#fecc00", "#bf7013","#4066aa","#a5027c", "#94a6b0", "#e20030"), ref@data$BA)
+pal <- colorFactor(c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00"), ref@data$BA)
 
 # set color palette for plotly 
-pal.ref <- c("#fecc00", "#bf7013","#4066aa","#a5027c", "#94a6b0", "#e20030") %>%
+pal.ref <- c("#bf7013","#a5027c","#4066aa","#94a6b0","#e20030", "#fecc00") %>%
    setNames(levels(ref@data$BA))
 
 # palette  in the order of reference data levels
@@ -190,6 +185,18 @@ ref.prob.hei <- merge(ref.prob.hei, ref.hei@data ,by="ID", all = TRUE)
 
 ref.prob <- rbind.data.frame(ref.prob.sol, ref.prob.har, ref.prob.hei)
 
+ref.prob$BA <- plyr::revalue(ref.prob$BA, c("211"="BU",
+                                                    "112"="EI",
+                                                    "511"="FI",
+                                                    "611"="DGL",
+                                                    "711"="KI",
+                                                    "811"="LAE"))
+
+                    
+                    
+ref.prob <- ref.prob %>% 
+  mutate(BA = fct_relevel(BA, c("BU", "DGL", "FI", "KI", "LAE", "EI")))
+
 ```
 
 ```{r plot_ref_prob, fig.cap= "Classification probability by site and tree species for reference data locations"}
@@ -249,12 +256,25 @@ colnames(ref.class)[4] <- "ID"
 # revalue classificaton data
 ref.class$classification <- as.factor(ref.class$classification)
 
-ref.class$classification <- plyr::revalue(ref.class$classification, c("6"="Eiche", 
-                    "1"="Buche",
-                    "3"="Fichte",
-                    "2"="Douglasie",
-                    "4"="Kiefer",
-                    "5"="Laerche"))
+ref.class$classification <- plyr::revalue(ref.class$classification, c("6"="EI", 
+                    "1"="BU",
+                    "3"="FI",
+                    "2"="DGL",
+                    "4"="KI",
+                    "5"="LAE"))
+
+
+
+ref.class$reference <- plyr::revalue(ref.class$reference, c("211"="BU",
+                                                    "112"="EI",
+                                                    "511"="FI",
+                                                    "611"="DGL",
+                                                    "711"="KI",
+                                                    "811"="LAE"))
+ref.class <- ref.class %>% 
+  mutate(classification = fct_relevel(classification, c("BU", "DGL", "FI", "KI", "LAE", "EI")),
+         reference = fct_relevel(reference, c("BU", "DGL", "FI", "KI", "LAE", "EI")))
+
 ```
 
 **Error Matrix**
@@ -269,21 +289,21 @@ cm.df %>%
 ```
 
 
-### Inventory data for validation
+### National forest inventory data for validation
 
 BWI-plots in Lower Saxony were filtered by certain criteria to serve as validation data. Only plots with a relative tree species proportion of more than 75% in the main canopy layer for one of the classified tree species groups were considered.
 Class predictions for all pixels covered by these plots were extracted from the model prediction raster and compared against the inventory data.
 
 ```{r plot_bwi_class_init}
 # load bwi data
-ref_ni <- read.csv("../data/reference/bwi/ref_ni.csv", stringsAsFactors=TRUE)
+ref_ni <- read.csv(here("/data/reference/bwi/ref_ni.csv"), stringsAsFactors=TRUE)
 
-ref_ni$BA <- plyr::revalue(ref_ni$BaGr, c("EI"="Eiche", 
-                    "BU"="Buche",
-                    "FI"="Fichte",
-                    "DGL"="Douglasie",
-                    "KI"="Kiefer",
-                    "LAE"="Laerche"))
+# ref_ni$BA <- plyr::revalue(ref_ni$BaGr, c("EI"="Eiche", 
+#                     "BU"="Buche",
+#                     "FI"="Fichte",
+#                     "DGL"="Douglasie",
+#                     "KI"="Kiefer",
+#                     "LAE"="Laerche"))
 
 ref_ni.sp<- SpatialPointsDataFrame(coords = ref_ni[,c("GK3_Rechts", "GK3_Hoch")], data = ref_ni, proj4string = CRS("+init=epsg:31467"))
 
@@ -299,18 +319,22 @@ ref.class.bwi <- merge(ref.class.bwi, ref.bwi@data ,by.x="ID", by.y="X", all = T
 # rename columns
 colnames(ref.class.bwi)[2] <- "classification"
 
-ref.class.bwi <- ref.class.bwi %>% rename(reference = BA)
+ref.class.bwi <- ref.class.bwi %>% rename(reference = BaGr)
 
 
 # revalue classificaton data
 ref.class.bwi$classification <- as.factor(ref.class.bwi$classification)
 
-ref.class.bwi$classification <- plyr::revalue(ref.class.bwi$classification, c("6"="Eiche", 
-                    "1"="Buche",
-                    "3"="Fichte",
-                    "2"="Douglasie",
-                    "4"="Kiefer",
-                    "5"="Laerche"))
+ref.class.bwi$classification <- plyr::revalue(ref.class.bwi$classification, c("6"="EI", 
+                    "1"="BU",
+                    "3"="FI",
+                    "2"="DGL",
+                    "4"="KI",
+                    "5"="LAE"))
+
+ref.class.bwi <- ref.class.bwi %>% 
+  mutate(classification = fct_relevel(classification, c("BU", "DGL", "FI", "KI", "LAE", "EI")),
+         reference = fct_relevel(reference, c("BU", "DGL", "FI", "KI", "LAE", "EI")))
 
 ref.class.sp <- sp::merge(ref.bwi, ref.class.bwi, by= c("Tnr", "Enr"))
 
@@ -335,7 +359,7 @@ cm.df %>%
 
 
 **Respective Accuracy**
-```{r print_ref_acc}
+```{r print_bwi_acc}
 
 cm.df <- as.data.frame(t(cm$overall[1:2]))
 
@@ -344,3 +368,95 @@ kable(cm.df) %>% kable_styling(full_width = F)
 ```
 
 
+### Federal forest inventory data for validation
+
+BI-plots within the study areas were used as validation data. Plot data was aggregated by species group and basal area was used to determine the dominant tree species per plot. Only plots with a relative basal area proportion of more than 75% for one of the classified tree species groups were considered. Plots with a more heterogeneous species cover and plots dominated by other species groups were not considered.
+Class predictions for these plots were extracted from the model prediction raster and compared against the inventory data.
+
+```{r plot_bi_class_init}
+# load bi data
+bi <- read.csv(here("data/reference/bi/bi_ready.csv"), stringsAsFactors=TRUE)
+
+# join species groups
+spec_code <- read.csv2(here("data/reference/ba_code_ni_bdat.csv"), stringsAsFactors=TRUE)
+bi <- bi %>%
+  left_join(spec_code %>% select(id_ni, gruppe), by = c("species" = "id_ni"))
+
+
+# calculate species shares per plot (by basal area, crown projection)
+bi_plots <- bi %>%
+  mutate(ba = pi*(0.5*dbh)^2,
+         crown = pi*(0.5*crownwidth)^2) %>%
+  group_by(id) %>% 
+  mutate(ba_plot = sum(ba),
+         crown_plot = sum(crown)) %>% 
+  ungroup() %>% 
+  group_by(id, datph2_rw, datph2_hw, gruppe) %>% 
+  summarise(ba = sum(ba)/unique(ba_plot),
+            crown = sum(crown)/unique(crown_plot),) %>% 
+  ungroup()  
+
+# species per plot with max basal area
+bi_spec <- bi_plots %>% 
+  group_by(id, datph2_rw, datph2_hw) %>% 
+  slice_max(ba) %>% 
+  ungroup()  
+
+# filter to relevant species groups (leave out SLN and SLB) reorder factors and filter to stands with dominant species
+bi_spec <- bi_spec %>% 
+  filter(gruppe %in% c("BU", "DGL", "FI", "KI", "LAE", "EI")) %>% 
+  droplevels() %>% 
+  mutate(gruppe = fct_relevel(gruppe, c("BU", "DGL", "FI", "KI", "LAE", "EI"))) %>%
+  filter(ba >= 0.75)
+
+
+# make spatial
+bi_spec.sp<- SpatialPointsDataFrame(coords = bi_spec[,c("datph2_rw", "datph2_hw")], data = bi_spec, proj4string = CRS("+init=epsg:31467"))
+
+# transform
+bi_spec.sp <- spTransform(bi_spec.sp, img.class@crs)
+
+
+# extract classification results at bi plots
+ref.class.bi <- raster::extract(img.class, bi_spec.sp, df=TRUE)
+ref.class.bi$plot_id <- bi_spec.sp$id
+# rename classification
+colnames(ref.class.bi)[2] <- "classification"
+# merge data 
+ref.class.bi <- merge(bi_spec, ref.class.bi ,by.x="id", by.y="plot_id", all = TRUE)
+# rename reference
+ref.class.bi <- ref.class.bi %>% rename(reference = gruppe)
+# revalue classification data
+ref.class.bi$classification <- as.factor(ref.class.bi$classification)
+
+ref.class.bi$classification <- plyr::revalue(ref.class.bi$classification, c("6"="EI", 
+                    "1"="BU",
+                    "3"="FI",
+                    "2"="DGL",
+                    "4"="KI",
+                    "5"="LAE"))
+
+
+```
+
+
+**Error Matrix**
+```{r plot_bi_class_em, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
+cm<- confusionMatrix(data = ref.class.bi$classification, reference = ref.class.bi$reference)
+cm.df <- as.data.frame.matrix(cm$table)
+
+cm.df %>%
+  knitr::kable("html", escape = F, rownames = T,)%>%
+  kable_styling("hover", full_width = F) 
+
+```
+
+
+**Respective Accuracy**
+```{r print_bi_acc}
+
+cm.df <- as.data.frame(t(cm$overall[1:2]))
+
+kable(cm.df) %>% kable_styling(full_width = F)
+
+```
