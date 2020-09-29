@@ -1,0 +1,66 @@
+Ziffer;Bestandestyp;Baumart
+0;Blöße;NA
+10;TEi rein;EI
+11;SEi rein;EI
+12;TEi/Bu mit sonst LB;EI
+13;SEi mit Edella;EI
+14;SEi/Bu mit sonst. LB;EI
+16;Ei mit NB;EI
+17;Ei mit sonst. LB u/o NB;EI
+18;REi rein u. gemischt;EI
+19;Sonst.Bestände Ei;EI
+20;Bu rein;BU
+21;Bu mit Ei;BU
+22;Bu mit BAh;BU
+23;Bu mit Edella;BU
+25;Bu mit Fi;BU
+26;Bu mit Dgl;BU
+27;Bu mit Ki;BU
+28;Bu mit Lä;BU
+29;Bu (HBu) m. sonst. BArt.;BU
+30;BAh rein;ALH
+31;Es rein;ALH
+32;Es gemischt;ALH
+33;Es mit RErl;ALH
+34;BAh gemischt;ALH
+35;Li rein u. gemischt;ALH
+36;Kir rein u. gemischt;ALH
+39;Sonst.Bestände ALh;ALH
+40;Erl rein u. gemischt;ALN
+42;Pa/As rein u. gemischt;ALN
+43;RErl mit Es;ALN
+44;Bi rein u. gemischt;ALN
+49;Sonst.Bestände ALn;ALN
+50;Fi rein;FI
+51;Hochlagenfichte;FI
+52;Fi mit Bu;FI
+53;Fi mit ALn;FI
+54;Fi mit sonst. LB;FI
+55;Wta rein u. gemischt;FI
+56;Sonst Ta rein u gemischt;FI
+57;Fi mit sonst NB;FI
+58;Fi mit LB und NB;FI
+59;Sonst.Bestände Fi;FI
+60;Dgl rein;DGL
+62;Dgl mit Bu;DGL
+64;Dgl mit sonst LB;DGL
+65;Dgl mit Fi;DGL
+66;Dgl mit Ta;DGL
+67;Dgl mit Ki;DGL
+68;Dgl mit LB u. NB;DGL
+70;Ki rein;KI
+71;Ki mit Ei u. sonst BA;KI
+72;Ki mit Bu u. sonst BA.;KI
+74;Ki mit sonst. LB u/o NB;KI
+75;Ki mit Fi;KI
+76;Ki mit Dgl;KI
+77;SKi rein u. gemischt;KI
+78;Stro rein u. gemischt;KI
+79;Sonst.Bestände Ki;KI
+81;ELä rein;LAE
+82;JLä rein;LAE
+83;JLä mit Bu u. sonst. LB;LAE
+84;JLä mit sonst LB u./o. NB;LAE
+85;ELä mit Bu u. sonst LB;LAE
+86;ELä mit sonst. LB u./o .NB;LAE
+89;Sonst.Best. Lä;LAE
