@@ -375,87 +375,99 @@ kable(cm.df) %>% kable_styling(full_width = F)
 
 ### Federal forest inventory data for validation
 
-<!-- BI-plots within the study areas were used as validation data. Plot data was aggregated by species group and basal area was used to determine the dominant tree species per plot. Only plots with a relative basal area proportion of more than 75% for one of the classified tree species groups were considered. Plots with a more heterogeneous species cover and plots dominated by other species groups were not considered. -->
-<!-- Class predictions for these plots were extracted from the model prediction raster and compared against the inventory data. -->
+BI-plots within the study areas were used as validation data. Plot data was aggregated by species group and basal area was used to determine the dominant tree species per plot. Only plots with a relative basal area proportion of at least 75% for one of the classified tree species groups were considered. Plots with a more heterogeneous species cover and plots dominated by other species groups were not considered.
+Class predictions for these plots were extracted from the model prediction raster and compared against the inventory data.
 
 <!-- ```{r plot_bi_class_init} -->
 <!-- # load bi data -->
-<!-- bi <- read.csv(here("data/reference/bi/bi_ready.csv"), stringsAsFactors=TRUE) -->
+<!-- bi <- read.csv2(here("data/reference/bi/bi2018_nlf_tblDatPh2.csv"), stringsAsFactors=TRUE) -->
 
 <!-- # join species groups -->
-<!-- spec_code <- read.csv2(here("data/reference/ba_code_ni_bdat.csv"), stringsAsFactors=TRUE) -->
+<!-- bt_code <- read.csv2(here("data/reference/bestandestyp_ni.csv"), stringsAsFactors=TRUE) -->
 <!-- bi <- bi %>% -->
-<!--   left_join(spec_code %>% select(id_ni, gruppe), by = c("species" = "id_ni")) -->
+<!--   left_join(bt_code, by = c("DatPh2_BT" = "Ziffer")) -->
 
-
-<!-- # calculate species shares per plot (by basal area, crown projection) -->
-<!-- bi_plots <- bi %>% -->
-<!--   mutate(ba = pi*(0.5*dbh)^2, -->
-<!--          crown = pi*(0.5*crownwidth)^2) %>% -->
-<!--   group_by(id) %>% -->
-<!--   mutate(ba_plot = sum(ba), -->
-<!--          crown_plot = sum(crown)) %>% -->
-<!--   ungroup() %>% -->
-<!--   group_by(id, datph2_rw, datph2_hw, gruppe) %>% -->
-<!--   summarise(ba = sum(ba)/unique(ba_plot), -->
-<!--             crown = sum(crown)/unique(crown_plot),) %>% -->
+<!-- # merge duplicate entries (for different years) -->
+<!-- bi <- bi %>% group_by(DatPh2_RW, DatPh2_HW) %>% -->
+<!--   slice_max(DatPH2_STJ) %>% -->
+<!--   group_by(DatPh2_RW, DatPh2_HW, DatPH2_STJ) %>% -->
+<!--   slice_max(DatPh2_BT) %>% -->
 <!--   ungroup() -->
-
-<!-- # species per plot with max basal area -->
-<!-- bi_spec <- bi_plots %>% -->
-<!--   group_by(id, datph2_rw, datph2_hw) %>% -->
-<!--   slice_max(ba) %>% -->
-<!--   ungroup() -->
-
-<!-- # filter to relevant species groups (leave out SLN and SLB) reorder factors and filter to stands with dominant species -->
-<!-- bi_spec <- bi_spec %>% -->
-<!--   filter(gruppe %in% c("BU", "DGL", "FI", "KI", "LAE", "EI")) %>% -->
-<!--   droplevels() %>% -->
-<!--   mutate(gruppe = fct_relevel(gruppe, c("BU", "DGL", "FI", "KI", "LAE", "EI"))) %>% -->
-<!--   filter(ba >= 0.75) -->
-
 
 <!-- # make spatial -->
-<!-- bi_spec.sp<- SpatialPointsDataFrame(coords = bi_spec[,c("datph2_rw", "datph2_hw")], data = bi_spec, proj4string = CRS("+init=epsg:31467")) -->
+<!-- bi.sp<- SpatialPointsDataFrame(coords = bi[,c("DatPh2_RW", "DatPh2_HW")], data = bi, proj4string = CRS("+init=epsg:31467")) -->
 
 <!-- # transform -->
-<!-- bi_spec.sp <- spTransform(bi_spec.sp, img.class@crs) -->
+<!-- bi.sp <- spTransform(bi.sp, img.class@crs) -->
 
-<!-- bi_spec_sol.sp <- crop(bi_spec.sp, ext.sol) -->
-<!-- bi_spec_har.sp <- crop(bi_spec.sp, ext.har) -->
-<!-- bi_spec_hei.sp <- crop(bi_spec.sp, ext.hei) -->
+<!-- # filter by roi extents -->
+<!-- bi_sol.sp <- crop(bi.sp, ext.sol) %>% mutate(site = "solling") -->
+<!-- bi_har.sp <- crop(bi.sp, ext.har) %>% mutate(site = "harz") -->
+<!-- bi_hei.sp <- crop(bi.sp, ext.hei) %>% mutate(site = "heide") -->
 
+<!-- #merge -->
+<!-- bi_roi.sp <- rbind(bi_sol.sp, bi_har.sp, bi_hei.sp) -->
 
 <!-- # extract classification results at bi plots -->
-<!-- ref.class.bi <- raster::extract(img.class, bi_spec.sp, df=TRUE) -->
-<!-- ref.class.bi$plot_id <- bi_spec.sp$id -->
-<!-- # rename classification -->
-<!-- colnames(ref.class.bi)[2] <- "classification" -->
-<!-- # merge data -->
-<!-- ref.class.bi <- merge(bi_spec, ref.class.bi ,by.x="id", by.y="plot_id", all = TRUE) -->
-<!-- # rename reference -->
-<!-- ref.class.bi <- ref.class.bi %>% rename(reference = gruppe) -->
-<!-- # revalue classification data -->
-<!-- ref.class.bi$classification <- as.factor(ref.class.bi$classification) -->
+<!-- ref.class.bi <- raster::extract(img.class, bi_roi.sp, sp=TRUE) -->
 
-<!-- ref.class.bi$classification <- plyr::revalue(ref.class.bi$classification, c("6"="EI", -->
-<!--                     "1"="BU", -->
-<!--                     "3"="FI", -->
-<!--                     "2"="DGL", -->
-<!--                     "4"="KI", -->
-<!--                     "5"="LAE")) -->
+<!-- # refactor, relevel, compare, ... -->
+<!-- ref.class.bi <- ref.class.bi %>% mutate(reference = as.factor(Baumart), -->
+<!--                                         site = as.factor(site), -->
+<!--                                          classification = fct_recode(as.factor(classification), "EI"="6", "BU"="1","FI"="3","DGL"="2","KI"="4","LAE"="5")) %>% -->
+<!--   filter(reference %in% c("BU", "DGL", "FI", "KI", "LAE", "EI")) %>% -->
+<!--   mutate(reference = factor(fct_relevel(reference, c("BU", "DGL", "FI", "KI", "LAE", "EI"))), -->
+<!--          result = as.factor(if_else(classification != reference,"incorrect", "correct")), -->
+<!--          label = paste(sep ="  ",'Reference: ', as.character(reference), 'Classification: ',as.character(classification)) -->
+<!-- ) -->
 
 
+<!-- ref.class.bi.df <- ref.class.bi@data -->
+
+<!-- #calculate species composition -->
+<!-- species.composition <- ref.class.bi.df %>% group_by(site, reference) %>% summarise(Anteil = n()) %>% mutate(Anteil = round(Anteil/sum(Anteil)*100, 1)) %>% spread(site, Anteil)  -->
+
+<!-- write.csv(species.composition, file= here("data/reference/bi/bi2018_nlf_speciescomposition_by_roi.csv")) -->
+
+<!-- #calculate results by stand type -->
+<!-- standtype.result <- ref.class.bi.df %>% filter(result %in% c("correct", "incorrect")) %>% group_by(Bestandestyp, result) %>% summarise(Anteil = n()) %>% mutate(Anteil = round(Anteil/sum(Anteil)*100, 1)) %>% spread(result, Anteil)  -->
+
+<!-- write.csv(standtype.result, file= here("data/reference/bi/bi2018_nlf_classificationresult_by_bestandestyp.csv")) -->
+
+<!-- # filter for pure stand types -->
+<!-- ref.class.bi.pure <- ref.class.bi.df %>% filter(Bestandestyp %in% c("Bu rein","Dgl rein", "Fi rein", "Ki rein", "Lae rein", "Ei rein")) -->
+<!-- ``` -->
+
+<!-- **Map overview** -->
+<!-- ```{r plot_ref_bi, fig.cap= "Reference data sampling locations"} -->
+<!-- pal.result <- colorFactor(c("red", "grey"), levels = c("incorrect", "correct")) -->
+
+<!-- # transform -->
+<!-- ref.bi <- spTransform(ref.class.bi, CRS("+init=epsg:4326")) -->
+
+<!-- ref.bi %>%  -->
+<!-- leaflet() %>% -->
+<!--   addProviderTiles(providers$Esri.WorldImagery) %>% -->
+<!--   addCircleMarkers( -->
+<!--     radius = 5, -->
+<!--     color = ~pal.result(result), -->
+<!--     stroke = FALSE, fillOpacity = 0.5, -->
+<!--     label = ~label -->
+<!--   ) %>% -->
+<!--   addLegend("bottomright", pal = pal.result, values = ~result, -->
+<!--             title = "Classification result", -->
+<!--             opacity = 1 -->
+<!--   ) -->
 <!-- ``` -->
 
 <!-- **Error Matrix** -->
 <!-- ```{r plot_bi_class_em, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"} -->
-<!-- cm<- confusionMatrix(data = ref.class.bi$classification, reference = ref.class.bi$reference) -->
+<!-- cm<- confusionMatrix(data = ref.class.bi.df$classification, reference = ref.class.bi.df$reference) -->
 <!-- cm.df <- as.data.frame.matrix(cm$table) -->
 
 <!-- cm.df %>% -->
 <!--   knitr::kable("html", escape = F, rownames = T,)%>% -->
-<!--   kable_styling("hover", full_width = F) -->
+<!--   kable_styling("hover", full_width = F)  -->
 
 <!-- ``` -->
 
@@ -469,36 +481,79 @@ kable(cm.df) %>% kable_styling(full_width = F)
 
 <!-- ``` -->
 
-BI-plots within the study areas were used as validation data. Forest stand type assessed in the latest inventory up to 2018 was aggregated by species group on plot level. Plots dominated by other species groups (ALH, ALN) were not considered.
-Class predictions for these plots were extracted from the model prediction raster and compared against the inventory data.
-
 
 ```{r plot_bi_class_init}
+
+## calculate dominant species per plot basd on basal area
+
 # load bi data
-bi <- read.csv2(here("data/reference/bi/bi2018_nlf_tblDatPh2.csv"), stringsAsFactors=TRUE)
+bi.baum <- read.csv2(here("data/reference/bi/bi2017_nlf_tblDatPh2_Vorr.csv"), stringsAsFactors=TRUE)
+
+colnames(bi.baum) <- gsub('DatPh2_','',colnames(bi.baum))
+colnames(bi.baum) <- gsub('Vorr_','',colnames(bi.baum))
+
+# join species groups
+spec_code <- read.csv2(here("data/reference/ba_code_ni_bdat.csv"), stringsAsFactors=TRUE)
+bi.baum <- bi.baum %>%
+  left_join(spec_code %>% select(id_ni, gruppe), by = c("BA" = "id_ni"))
+
+# calculate species shares per plot (by basal area, crown projection)
+bi_plots <- bi.baum %>%
+  filter(BestSchicht == 1) %>%
+  mutate(ba = pi*(0.5*BHD)^2) %>%
+  group_by(KSPNr) %>%
+  mutate(ba_plot = sum(ba)) %>%
+  ungroup() %>%
+  group_by(KSPNr, gruppe) %>%
+  summarise(ba = sum(ba)/unique(ba_plot)) %>%
+  ungroup()
+
+# species per plot with max basal area
+bi_spec <- bi_plots %>%
+  group_by(KSPNr) %>%
+  slice_max(ba) %>%
+  ungroup()
+
+# filter to relevant species groups (leave out SLN and SLB) reorder factors and filter to stands with dominant species
+bi_spec <- bi_spec %>%
+  filter(gruppe %in% c("BU", "DGL", "FI", "KI", "LAE", "EI")) %>%
+  droplevels() %>%
+  mutate(species_ba = fct_relevel(gruppe, c("BU", "DGL", "FI", "KI", "LAE", "EI"))) %>%
+  filter(ba >= 0.75) %>%
+  select(KSPNr, species_ba)
+
+
+## calculate dominant species based on forest type
+
+bi.plot <- read.csv2(here("data/reference/bi/bi2017_nlf_tblDatPh2.csv"), stringsAsFactors=TRUE)
+
+colnames(bi.plot) <- gsub('DatPh2_','',colnames(bi.plot))
 
 # join species groups
 bt_code <- read.csv2(here("data/reference/bestandestyp_ni.csv"), stringsAsFactors=TRUE)
-bi <- bi %>%
-  left_join(bt_code, by = c("DatPh2_BT" = "Ziffer"))
+bi.plot <- bi.plot %>% 
+  left_join(bt_code, by = c("BT" = "Ziffer")) %>%
+  filter(Baumart %in% c("BU", "DGL", "FI", "KI", "LAE", "EI"))%>%
+  droplevels()%>%
+  mutate(species_ft = fct_relevel(Baumart, c("BU", "DGL", "FI", "KI", "LAE", "EI"))) %>%
+  select(KSPNr, RW, HW, Bestandestyp, species_ft)
 
-# merge duplicate entries (for different years)
-bi <- bi %>% group_by(DatPh2_RW, DatPh2_HW) %>%
-  slice_max(DatPH2_STJ) %>%
-  group_by(DatPh2_RW, DatPh2_HW, DatPH2_STJ) %>%
-  slice_max(DatPh2_BT) %>%
-  ungroup()
+
+## merge data
+  
+bi <- bi_spec %>%
+  inner_join(bi.plot, by = c("KSPNr")) 
 
 # make spatial
-bi.sp<- SpatialPointsDataFrame(coords = bi[,c("DatPh2_RW", "DatPh2_HW")], data = bi, proj4string = CRS("+init=epsg:31467"))
+bi.sp<- SpatialPointsDataFrame(coords = bi[,c("RW", "HW")], data = bi, proj4string = CRS("+init=epsg:31467"))
 
 # transform
 bi.sp <- spTransform(bi.sp, img.class@crs)
 
 # filter by roi extents
-bi_sol.sp <- crop(bi.sp, ext.sol)
-bi_har.sp <- crop(bi.sp, ext.har)
-bi_hei.sp <- crop(bi.sp, ext.hei)
+bi_sol.sp <- crop(bi.sp, ext.sol) %>% mutate(site = "solling")
+bi_har.sp <- crop(bi.sp, ext.har) %>% mutate(site = "harz")
+bi_hei.sp <- crop(bi.sp, ext.hei) %>% mutate(site = "heide")
 
 #merge
 bi_roi.sp <- rbind(bi_sol.sp, bi_har.sp, bi_hei.sp)
@@ -507,16 +562,28 @@ bi_roi.sp <- rbind(bi_sol.sp, bi_har.sp, bi_hei.sp)
 ref.class.bi <- raster::extract(img.class, bi_roi.sp, sp=TRUE)
 
 # refactor, relevel, compare, ...
-ref.class.bi <- ref.class.bi %>% mutate(reference = as.factor(Baumart),
+ref.class.bi <- ref.class.bi %>% mutate(reference = as.factor(species_ba),
+                                        site = as.factor(site),
                                          classification = fct_recode(as.factor(classification), "EI"="6", "BU"="1","FI"="3","DGL"="2","KI"="4","LAE"="5")) %>%
-  filter(reference %in% c("BU", "DGL", "FI", "KI", "LAE", "EI")) %>%
-  mutate(reference = factor(fct_relevel(reference, c("BU", "DGL", "FI", "KI", "LAE", "EI"))),
-         result = as.factor(if_else(classification != reference,"incorrect", "correct")),
+  mutate(result = as.factor(if_else(classification != reference,"incorrect", "correct")),
          label = paste(sep ="  ",'Reference: ', as.character(reference), 'Classification: ',as.character(classification))
 )
 
 
 ref.class.bi.df <- ref.class.bi@data
+
+#calculate species composition
+species.composition <- ref.class.bi.df %>% group_by(site, reference) %>% summarise(Anteil = n()) %>% mutate(Anteil = round(Anteil/sum(Anteil)*100, 1)) %>% spread(site, Anteil) 
+ 
+write.csv(species.composition, file= here("data/reference/bi/bi2017_nlf_speciescomposition_by_roi_ba-greater-075.csv"))
+
+#calculate results by stand type
+standtype.result <- ref.class.bi.df %>% filter(result %in% c("correct", "incorrect")) %>% group_by(Bestandestyp, result) %>% summarise(Anteil = n()) %>% mutate(Anteil = round(Anteil/sum(Anteil)*100, 1)) %>% spread(result, Anteil) 
+
+write.csv(standtype.result, file= here("data/reference/bi/bi2017_nlf_classificationresult_by_bestandestyp_ba-greater-075.csv"))
+
+# filter for pure stand types
+ref.class.bi.pure <- ref.class.bi.df %>% filter(Bestandestyp %in% c("Bu rein","Dgl rein", "Fi rein", "Ki rein", "Lae rein", "Ei rein"))
 
 ```
 
