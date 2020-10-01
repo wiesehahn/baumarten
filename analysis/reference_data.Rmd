@@ -609,8 +609,12 @@ leaflet() %>%
   )
 ```
 
+#### By region {.tabset .tabset-pills} 
+
+##### Overall
+
 **Error Matrix**
-```{r plot_bi_class_em, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
+```{r plot_bi_class_em_all, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
 cm<- confusionMatrix(data = ref.class.bi.df$classification, reference = ref.class.bi.df$reference)
 cm.df <- as.data.frame.matrix(cm$table)
 
@@ -622,7 +626,79 @@ cm.df %>%
 
 
 **Respective Accuracy**
-```{r print_bi_acc}
+```{r print_bi_acc_all}
+
+cm.df <- as.data.frame(t(cm$overall[1:2]))
+
+kable(cm.df) %>% kable_styling(full_width = F)
+
+```
+
+##### Solling
+
+**Error Matrix**
+```{r plot_bi_class_em_sol, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
+ref.bi.sol <- ref.class.bi.df %>% filter(site== "solling")
+
+cm<- confusionMatrix(data = ref.bi.sol$classification, reference = ref.bi.sol$reference)
+cm.df <- as.data.frame.matrix(cm$table)
+
+cm.df %>%
+  knitr::kable("html", escape = F, rownames = T,)%>%
+  kable_styling("hover", full_width = F) 
+
+```
+
+**Respective Accuracy**
+```{r print_bi_acc_sol}
+
+cm.df <- as.data.frame(t(cm$overall[1:2]))
+
+kable(cm.df) %>% kable_styling(full_width = F)
+
+```
+
+##### Harz
+
+**Error Matrix**
+```{r plot_bi_class_em_har, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
+ref.bi.har <- ref.class.bi.df %>% filter(site== "harz")
+
+cm<- confusionMatrix(data = ref.bi.har$classification, reference = ref.bi.har$reference)
+cm.df <- as.data.frame.matrix(cm$table)
+
+cm.df %>%
+  knitr::kable("html", escape = F, rownames = T,)%>%
+  kable_styling("hover", full_width = F) 
+
+```
+
+**Respective Accuracy**
+```{r print_bi_acc_har}
+
+cm.df <- as.data.frame(t(cm$overall[1:2]))
+
+kable(cm.df) %>% kable_styling(full_width = F)
+
+```
+
+##### Heide
+
+**Error Matrix**
+```{r plot_bi_class_em_hei, fig.cap= "Error matrix for inventory data, which was collected 2012 for the NFI"}
+ref.bi.hei <- ref.class.bi.df %>% filter(site== "heide")
+
+cm<- confusionMatrix(data = ref.bi.hei$classification, reference = ref.bi.hei$reference)
+cm.df <- as.data.frame.matrix(cm$table)
+
+cm.df %>%
+  knitr::kable("html", escape = F, rownames = T,)%>%
+  kable_styling("hover", full_width = F) 
+
+```
+
+**Respective Accuracy**
+```{r print_bi_acc_hei}
 
 cm.df <- as.data.frame(t(cm$overall[1:2]))
 

@@ -4,6 +4,7 @@ library(RODBC)
 library(sf)
 library(raster)
 library(tidyr)
+library(dplyr)
 
 #### access data ####
 #------------------------------------------------------------------------------------------------------------------------------------
@@ -54,23 +55,23 @@ se_max <- fe_dat %>%
             MischProz = sum(DatZu_MischProz)) %>%
   distinct()
 
-# get dataset with most abundant species (min 50% fraction) per area
-fe_pure <- bind_rows(list(se_min, se_max)) %>%
-  distinct() %>%
-  group_by(DatWab_Key, DatZu_HauHilFl, SE) %>%
-  # filter to most abundant species ignoring stands where two species have same fraction
-  slice_max(n = 1, order_by = MischProz, with_ties = F) %>%
-  # filter to stands with species composition above 50%
-  filter(MischProz >= 50) %>%
-  # merge DatWab_Key and SE, DatWab_Key has tailing 1 in part of access data while always 0 in shape, SE has to be in two digits
-  mutate(DatWab_Key_SE = paste(substr(DatWab_Key, 1, 21), "0", "-", sprintf("%02d", SE), sep="") )
-
-# get dataset with most abundant species (multiple if same fraction) per area
-fe_dominant <- bind_rows(list(se_min, se_max)) %>%
-  distinct() %>%
-  group_by(DatWab_Key, DatZu_HauHilFl, SE) %>%
-  # filter to most abundant species including stands twice if two species share a fraction
-  slice_max(n = 1, order_by = MischProz)
+# # get dataset with most abundant species (min 50% fraction) per area
+# fe_pure <- bind_rows(list(se_min, se_max)) %>%
+#   distinct() %>%
+#   group_by(DatWab_Key, DatZu_HauHilFl, SE) %>%
+#   # filter to most abundant species ignoring stands where two species have same fraction
+#   slice_max(n = 1, order_by = MischProz, with_ties = F) %>%
+#   # filter to stands with species composition above 50%
+#   filter(MischProz >= 50) %>%
+#   # merge DatWab_Key and SE, DatWab_Key has tailing 1 in part of access data while always 0 in shape, SE has to be in two digits
+#   mutate(DatWab_Key_SE = paste(substr(DatWab_Key, 1, 21), "0", "-", sprintf("%02d", SE), sep="") )
+#
+# # get dataset with most abundant species (multiple if same fraction) per area
+# fe_dominant <- bind_rows(list(se_min, se_max)) %>%
+#   distinct() %>%
+#   group_by(DatWab_Key, DatZu_HauHilFl, SE) %>%
+#   # filter to most abundant species including stands twice if two species share a fraction
+#   slice_max(n = 1, order_by = MischProz)
 
 # get fraction per species for each area in one row
 fe_all <- bind_rows(list(se_min, se_max)) %>%
@@ -112,28 +113,65 @@ fc_forest_hei = st_crop(fc_forest, ext.hei)
 #### statistics ####
 #------------------------------------------------------------------------------------------------------------------------------------
 
-# calculate area per species based (only areas with single dominant species >=50% fraction; total shape area is considered to belong to respective species)
-fc_pure <- fe_pure %>% inner_join(data.frame(fc_forest),  by = c("DatWab_Key_SE" = "SE_neu"))
+# calculate composition for all fe data
 
-spec_area <- fc_pure %>% group_by(DatZu_BA) %>% summarise(spec_area = round(sum(SHAPE_Area)/10000, 2))
+# fc_all <- fe_all %>% inner_join(data.frame(fc_forest),  by = c("DatWab_Key_SE" = "SE_neu"))
+# # calculate species area by shapearea and percentage
+# fc_all <- fc_all %>% mutate(ShapeHa = SHAPE_Area/10000 * MischProz/100)
+#
+# spec_area <- fc_all %>% group_by(DatZu_BA) %>% summarise(area_ShapeHa = round(sum(ShapeHa), 1),
+#                                                           area_MischHa = round(sum(MischHa), 1),
+#                                                          perc_ShapeHa = round(area_ShapeHa / sum(fc_all$ShapeHa)*100, 1),
+#                                                          perc_MischHa = round(area_MischHa / sum(fc_all$MischHa)*100, 1))
 
 
-spec_area_acc <- fe_all %>% group_by(DatZu_BA) %>% summarise(spec_area = round(sum(MischHa), 2))
 
 
 
-fc_sol <- fe_all %>% inner_join(data.frame(fc_forest_sol),  by = c("DatWab_Key_SE" = "SE_neu"))
-area_sol <- fc_sol %>% group_by(DatZu_BA) %>% summarise(spec_area = round(sum(MischHa), 1))
+fc_sol <- fe_all %>%
+  inner_join(data.frame(fc_forest_sol),  by = c("DatWab_Key_SE" = "SE_neu")) %>%
+  mutate(ShapeHa = SHAPE_Area/10000 * MischProz/100)
 
-fc_har <- fe_all %>% inner_join(data.frame(fc_forest_har),  by = c("DatWab_Key_SE" = "SE_neu"))
-area_har <- fc_har %>% group_by(DatZu_BA) %>% summarise(spec_area = round(sum(MischHa), 1))
+area_sol <- fc_sol %>% group_by(DatZu_BA) %>% summarise(area_ShapeHa = round(sum(ShapeHa), 1),
+                                                        area_MischHa = round(sum(MischHa), 1),
+                                                        perc_ShapeHa = round(area_ShapeHa / sum(fc_sol$ShapeHa)*100, 1),
+                                                        perc_MischHa = round(area_MischHa / sum(fc_sol$MischHa)*100, 1)) %>%
+  select(DatZu_BA, perc_ShapeHa, perc_MischHa) %>%
+  mutate(site = "sol")
 
-fc_hei <- fe_all %>% inner_join(data.frame(fc_forest_hei),  by = c("DatWab_Key_SE" = "SE_neu"))
-area_hei <- fc_hei %>% group_by(DatZu_BA) %>% summarise(spec_area = round(sum(MischHa), 1))
 
-area_all <- area_sol %>% full_join(area_har, by = "DatZu_BA") %>% full_join(area_hei, by = "DatZu_BA")
+fc_har <- fe_all %>%
+  inner_join(data.frame(fc_forest_har),  by = c("DatWab_Key_SE" = "SE_neu")) %>%
+  mutate(ShapeHa = SHAPE_Area/10000 * MischProz/100)
 
-names(area_all) <- c("BA", "sol", "har", "hei")
+area_har <- fc_har %>% group_by(DatZu_BA) %>% summarise(area_ShapeHa = round(sum(ShapeHa), 1),
+                                                        area_MischHa = round(sum(MischHa), 1),
+                                                        perc_ShapeHa = round(area_ShapeHa / sum(fc_har$ShapeHa)*100, 1),
+                                                        perc_MischHa = round(area_MischHa / sum(fc_har$MischHa)*100, 1))%>%
+  select(DatZu_BA, perc_ShapeHa, perc_MischHa) %>%
+  mutate(site = "har")
 
-write.csv(area_all, file = here("data/reference/forsteinrichtung", "ba_area_hauptbestand.csv"), row.names = FALSE)
+
+fc_hei <- fe_all %>%
+  inner_join(data.frame(fc_forest_hei),  by = c("DatWab_Key_SE" = "SE_neu")) %>%
+  mutate(ShapeHa = SHAPE_Area/10000 * MischProz/100)
+
+area_hei <- fc_hei %>% group_by(DatZu_BA) %>% summarise(area_ShapeHa = round(sum(ShapeHa), 1),
+                                                        area_MischHa = round(sum(MischHa), 1),
+                                                        perc_ShapeHa = round(area_ShapeHa / sum(fc_hei$ShapeHa)*100, 1),
+                                                        perc_MischHa = round(area_MischHa / sum(fc_hei$MischHa)*100, 1))%>%
+  select(DatZu_BA, perc_ShapeHa, perc_MischHa) %>%
+  mutate(site = "hei")
+
+
+area_all <- rbind(area_sol, area_har, area_hei)
+
+
+spec_code <- read.csv2("data/reference/ba_code_ni_bdat.csv", stringsAsFactors=TRUE)
+
+area_all <- area_all %>%
+  left_join(spec_code %>% select(id_ni, kurz_ni, gruppe), by = c("DatZu_BA" = "id_ni"))
+
+
+write.csv(area_all, file = here("data/reference/forsteinrichtung", "fe_species_composition_by_roi.csv"), row.names = FALSE)
 
